@@ -2,12 +2,18 @@ from pathlib import Path
 from unittest.mock import patch
 
 import pytest
-from custom_components.gtfs_hub.const import DEPARTURES_INTERVAL, DOMAIN
+from custom_components.gtfs_hub.const import (
+    DEPARTURES_INTERVAL,
+    DOMAIN,
+    SCHEDULE_INTERVAL,
+    SCHEDULE_RETRY_INTERVAL,
+)
 from freezegun.api import FrozenDateTimeFactory
 from homeassistant.config_entries import ConfigEntryState
 from homeassistant.const import STATE_OFF, STATE_ON, STATE_UNAVAILABLE, STATE_UNKNOWN
 from homeassistant.core import HomeAssistant
 from homeassistant.exceptions import ServiceValidationError
+from homeassistant.helpers import entity_registry as er
 from pytest_homeassistant_custom_component.common import async_fire_time_changed
 
 from conftest import NOW, FakeHub, departure, line_subentry, make_entry, stop_subentry
@@ -211,3 +217,29 @@ async def test_cache_removed_with_the_entry(hass: HomeAssistant, hub: FakeHub) -
     assert await hass.config_entries.async_remove(entry.entry_id)
     await hass.async_block_till_done()
     assert not await hass.async_add_executor_job(path.exists)
+
+
+async def test_no_realtime_without_pins_or_persons(hass: HomeAssistant, hub: FakeHub) -> None:
+    hub.realtime = RealtimeData(NOW)
+    with patch.object(hub, "async_fetch_realtime") as fetch:
+        await setup(hass, line_subentry())
+    fetch.assert_not_called()
+    assert hass.states.get(LIVE).state == STATE_OFF
+
+
+async def test_failed_sync_retries_soon(hass: HomeAssistant, hub: FakeHub) -> None:
+    hub.sync_error = GtfsConnectionError("down")
+    entry = await setup(hass, line_subentry())
+    assert entry.runtime_data.schedule.update_interval == SCHEDULE_RETRY_INTERVAL
+    hub.sync_error = None
+    await entry.runtime_data.schedule.async_refresh()
+    assert entry.runtime_data.schedule.update_interval == SCHEDULE_INTERVAL
+
+
+async def test_removed_person_loses_the_sensor(hass: HomeAssistant, hub: FakeHub) -> None:
+    entry = await setup(hass, line_subentry(), options={"persons": ["person.ania"]})
+    entity_id = "sensor.fake_nearest_stop_ania"
+    assert hass.states.get(entity_id) is not None
+    hass.config_entries.async_update_entry(entry, options={"persons": []})
+    await hass.async_block_till_done()
+    assert er.async_get(hass).async_get(entity_id) is None

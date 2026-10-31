@@ -81,8 +81,9 @@ class FakeHub:
             return []
         return [Line(LINE_11, "Long", "A", None, None), Line(TRAM_11, None, "A", None, None)]
 
-    async def async_search_stops(self, query: str, limit: int = 20) -> list[Stop]:
-        return [STOP_A, Stop("Z", "Other line", None, 1, 2)] if query != "none" else []
+    async def async_search_stops(self, query: str, limit: int = 20, only: Any = None) -> list[Stop]:
+        stops = [STOP_A, Stop("Z", "Other line", None, 1, 2)] if query != "none" else []
+        return [stop for stop in stops if only is None or stop.key in only][:limit]
 
     async def async_fetch_realtime(self) -> RealtimeData | None:
         if self.realtime_error:

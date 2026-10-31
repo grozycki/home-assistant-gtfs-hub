@@ -77,7 +77,9 @@ async def async_setup_entry(hass: HomeAssistant, entry: GtfsHubConfigEntry) -> b
 
     @callback
     def _schedule_changed() -> None:
-        hass.async_create_task(departures.async_request_refresh())
+        entry.async_create_background_task(
+            hass, departures.async_request_refresh(), f"{DOMAIN}_departures_refresh"
+        )
 
     # A coordinator polls only with a listener, and this one also follows new stops.
     entry.async_on_unload(schedule.async_add_listener(_schedule_changed))

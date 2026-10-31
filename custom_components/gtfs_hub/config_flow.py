@@ -216,10 +216,10 @@ class StopSubentryFlow(_SearchFlow):
             return self.async_abort(reason="no_lines")
         if user_input is None:
             return self._query_form()
-        found = await runtime.hub.async_search_stops(user_input[CONF_QUERY], limit=200)
-        self._stops = {
-            stop.key: schedule.stops[stop.key] for stop in found if stop.key in schedule.stops
-        }
+        found = await runtime.hub.async_search_stops(
+            user_input[CONF_QUERY], limit=50, only=schedule.stops.keys()
+        )
+        self._stops = {stop.key: stop for stop in found}
         if not self._stops:
             return self._query_form({"base": "no_matches"})
         self._options = [

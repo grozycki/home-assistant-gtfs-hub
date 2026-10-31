@@ -28,6 +28,7 @@ from .const import (
     DOMAIN,
     LIST_LIMIT,
     SCHEDULE_INTERVAL,
+    SCHEDULE_RETRY_INTERVAL,
     SUBENTRY_LINE,
     SUBENTRY_STOP,
 )
@@ -86,7 +87,9 @@ class ScheduleCoordinator(DataUpdateCoordinator[ScheduleData]):
         selection = self.selection()
         try:
             await self.hub.async_sync(selection)
+            self.update_interval = SCHEDULE_INTERVAL
         except GtfsError as err:
+            self.update_interval = SCHEDULE_RETRY_INTERVAL
             # The stored database may still answer, so only warn when it does.
             _LOGGER.warning("Schedule sync failed, keeping stored data: %s", err)
         try:
@@ -165,6 +168,9 @@ class DeparturesCoordinator(DataUpdateCoordinator[DeparturesData]):
         nearest = self._nearest(stops)
         wanted = set(self._pinned())
         wanted.update(item.stop.key for item in nearest.values() if item is not None)
+        if not wanted:
+            self.realtime = None
+            return DeparturesData(nearest=nearest)
         await self._async_fetch_realtime()
         realtime = self.realtime
         live = realtime is not None and not realtime.is_stale(dt_util.utcnow(), _MAX_AGE)

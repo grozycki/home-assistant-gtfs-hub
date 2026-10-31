@@ -7,6 +7,7 @@ from homeassistant.components.sensor import SensorDeviceClass, SensorEntity
 from homeassistant.config_entries import ConfigSubentry
 from homeassistant.const import UnitOfLength, UnitOfTime
 from homeassistant.core import HomeAssistant
+from homeassistant.helpers import entity_registry as er
 from homeassistant.helpers.entity_platform import AddConfigEntryEntitiesCallback
 
 from gtfs_hub import Departure, DepartureStatus, Stop
@@ -33,10 +34,16 @@ async def async_setup_entry(
             ],
             config_subentry_id=subentry.subentry_id,
         )
+    persons = entry.options.get(CONF_PERSONS, [])
     async_add_entities(
-        NearestStopSensor(coordinator, attribution, entry, person)
-        for person in entry.options.get(CONF_PERSONS, [])
+        NearestStopSensor(coordinator, attribution, entry, person) for person in persons
     )
+    # Options hold persons, so nothing else removes the sensor of one taken off the list.
+    wanted = {f"{entry.entry_id}_nearest_{person}" for person in persons}
+    registry = er.async_get(hass)
+    for item in er.async_entries_for_config_entry(registry, entry.entry_id):
+        if item.unique_id.startswith(f"{entry.entry_id}_nearest_") and item.unique_id not in wanted:
+            registry.async_remove(item.entity_id)
 
 
 class StopSensor(GtfsHubEntity, SensorEntity):

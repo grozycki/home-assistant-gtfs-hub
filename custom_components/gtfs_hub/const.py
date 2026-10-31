@@ -26,5 +26,6 @@ SUBENTRY_LINE: Final = "line"
 SUBENTRY_STOP: Final = "stop"
 
 SCHEDULE_INTERVAL: Final = timedelta(hours=6)
+SCHEDULE_RETRY_INTERVAL: Final = timedelta(minutes=15)
 DEPARTURES_INTERVAL: Final = timedelta(seconds=30)
 LIST_LIMIT: Final = 5
