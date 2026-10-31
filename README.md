@@ -27,3 +27,7 @@ Not installable yet: the `gtfs-hub` packages are not on PyPI. Vehicles on the ma
 ## Verification
 
 On 2026-10-31 a real Home Assistant 2026.10.4 core ran this integration against the live GZM feed, with bus 11, one pinned stop and one person. Setup took 0.09 s, the first sync 21 s, and live data, next departure, delay and nearest stop sensors all reported sensible values. The frontend, so the config flow screens, has been covered only by automated tests.
+
+## Test instance
+
+`docker/up.sh` builds wheels of the local libraries and starts Home Assistant on http://localhost:8123, with this integration mounted read-only. After changing the integration, run `docker compose -f docker/compose.yaml restart`; after changing a library, run `docker/up.sh` again. To start from scratch, run `docker compose -f docker/compose.yaml down --volumes`.
