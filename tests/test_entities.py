@@ -33,6 +33,7 @@ from gtfs_hub import DepartureStatus, GtfsConnectionError, GtfsNoDataError, Real
 if TYPE_CHECKING:
     from freezegun.api import FrozenDateTimeFactory
     from homeassistant.core import HomeAssistant
+    from syrupy.assertion import SnapshotAssertion
 
 NEXT = "sensor.alfa_next_departure"
 DELAY = "sensor.alfa_delay"
@@ -292,3 +293,36 @@ async def test_failed_sync_without_lines_or_database_is_a_failure(
     entry = await setup(hass)
     assert entry.runtime_data.schedule.last_update_success is False
     assert entry.runtime_data.schedule.update_interval == SCHEDULE_RETRY_INTERVAL
+
+
+async def test_unavailable_provider_fails_setup(hass: HomeAssistant, hub: FakeHub) -> None:
+    entry = make_entry()
+    entry.add_to_hass(hass)
+    with patch(
+        "custom_components.gtfs_hub.async_create_provider", side_effect=GtfsNoDataError("gone")
+    ):
+        await hass.config_entries.async_setup(entry.entry_id)
+    assert entry.state is ConfigEntryState.SETUP_ERROR
+
+
+async def test_schedule_gone_makes_entities_unavailable(
+    hass: HomeAssistant, hub: FakeHub, freezer: FrozenDateTimeFactory
+) -> None:
+    await setup(hass, line_subentry(), stop_subentry())
+    with patch.object(hub, "async_departures", side_effect=GtfsNoDataError("gone")):
+        await tick(hass, freezer)
+    assert get_state(hass, NEXT).state == STATE_UNAVAILABLE
+
+
+async def test_entity_snapshot(
+    hass: HomeAssistant, hub: FakeHub, snapshot: SnapshotAssertion
+) -> None:
+    hub.departures[STOP_A.key] = [
+        departure(delay=120, status=DepartureStatus.PREDICTED),
+        departure(9, status=DepartureStatus.CANCELLED),
+    ]
+    hub.realtime = RealtimeData(NOW)
+    await setup(hass, line_subentry(), stop_subentry())
+    for entity_id in (NEXT, DELAY, LIVE):
+        state = get_state(hass, entity_id)
+        assert (state.state, dict(state.attributes)) == snapshot(name=entity_id)

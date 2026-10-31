@@ -8,7 +8,9 @@ dependencies = []
 dev = [
     "gtfs-hub",
     "gtfs-hub-gzm",
+    "gtfs-realtime-bindings==2.0.0",
     "mypy>=1.13",
+    "pytest-cov>=5.0",
     "pytest-homeassistant-custom-component",
     "ruff>=0.8",
 ]

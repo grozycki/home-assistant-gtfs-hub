@@ -26,7 +26,11 @@ Not installable yet: the `gtfs-hub` packages are not on PyPI. Vehicles on the ma
 
 ## Verification
 
-On 2026-10-31 a real Home Assistant 2026.10.4 core ran this integration against the live GZM feed, with bus 11, one pinned stop and one person. Setup took 0.09 s, the first sync 21 s, and live data, next departure, delay and nearest stop sensors all reported sensible values. The frontend, so the config flow screens, has been covered only by automated tests.
+On 2026-10-31, the Docker test instance on Home Assistant 2026.10.4 was set up through its interface against the live GZM feed: adding the source, line and stop, and choosing a person. Next departure, delay, live data and nearest stop sensors, and the `get_departures` action, returned sensible values.
+
+- `uv run pytest --cov=custom_components/gtfs_hub`: 99% coverage, with `config_flow.py` at 100%.
+- hassfest: passes, run with `docker run --rm --platform linux/amd64 -v "$PWD:/github/workspace:ro" ghcr.io/home-assistant/hassfest`.
+- HACS validation: not run, as it needs a GitHub token and a public repository.
 
 ## Test instance
 

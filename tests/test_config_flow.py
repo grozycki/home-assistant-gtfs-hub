@@ -7,7 +7,7 @@ from homeassistant.data_entry_flow import FlowResultType
 from homeassistant.helpers.selector import SelectSelector
 from probatio import Schema
 
-from conftest import FakeHub, FakeProvider, line_subentry, make_entry
+from conftest import FakeHub, FakeProvider, line_subentry, make_entry, stop_subentry
 from gtfs_hub import GtfsConnectionError, GtfsError, GtfsFeedError
 
 if TYPE_CHECKING:
@@ -174,3 +174,31 @@ async def test_options_choose_persons(hass: HomeAssistant, hub: FakeHub) -> None
     assert result["type"] is FlowResultType.CREATE_ENTRY
     await hass.async_block_till_done()
     assert hass.states.get("sensor.fake_nearest_stop_ania") is not None
+
+
+async def test_generic_source_error_then_duplicate(hass: HomeAssistant, hub: FakeHub) -> None:
+    url = {"schedule_url": "https://example.test/gtfs.zip"}
+    result = await _start(hass)
+    result = await hass.config_entries.flow.async_configure(
+        result["flow_id"], {"provider": "generic"}
+    )
+    with patch(BUILD, side_effect=GtfsConnectionError("x")):
+        result = await hass.config_entries.flow.async_configure(result["flow_id"], url)
+    assert result["errors"] == {"base": "cannot_connect"}
+    result = await hass.config_entries.flow.async_configure(result["flow_id"], url)
+    assert result["type"] is FlowResultType.CREATE_ENTRY
+    result = await _start(hass)
+    result = await hass.config_entries.flow.async_configure(
+        result["flow_id"], {"provider": "generic"}
+    )
+    result = await hass.config_entries.flow.async_configure(result["flow_id"], url)
+    assert result["reason"] == "already_configured"
+
+
+async def test_add_stop_twice(hass: HomeAssistant, hub: FakeHub) -> None:
+    entry = await _setup(hass, line_subentry(), stop_subentry())
+    flows = hass.config_entries.subentries
+    result = await flows.async_init((entry.entry_id, "stop"), context={"source": "user"})
+    result = await flows.async_configure(result["flow_id"], {"query": "a"})
+    result = await flows.async_configure(result["flow_id"], {"stop": "A"})
+    assert result["reason"] == "already_configured"

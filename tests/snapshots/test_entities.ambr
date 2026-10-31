@@ -1,0 +1,56 @@
+# serializer version: 1
+# name: test_entity_snapshot[binary_sensor.fake_live_data]
+  tuple(
+    'on',
+    dict({
+      <EntityStateAttribute.ATTRIBUTION: 'attribution'>: 'Data: Fake',
+      <EntityStateAttribute.DEVICE_CLASS: 'device_class'>: 'connectivity',
+      <EntityStateAttribute.FRIENDLY_NAME: 'friendly_name'>: 'Fake Live data',
+    }),
+  )
+# ---
+# name: test_entity_snapshot[sensor.alfa_delay]
+  tuple(
+    '120',
+    dict({
+      <EntityStateAttribute.ATTRIBUTION: 'attribution'>: 'Data: Fake',
+      <EntityStateAttribute.DEVICE_CLASS: 'device_class'>: 'duration',
+      <EntityStateAttribute.FRIENDLY_NAME: 'friendly_name'>: 'Alfa Delay',
+      <EntityStateAttribute.UNIT_OF_MEASUREMENT: 'unit_of_measurement'>: <UnitOfTime.SECONDS: 's'>,
+    }),
+  )
+# ---
+# name: test_entity_snapshot[sensor.alfa_next_departure]
+  tuple(
+    '2026-11-02T12:07:00+00:00',
+    dict({
+      <EntityStateAttribute.ATTRIBUTION: 'attribution'>: 'Data: Fake',
+      'departures': list([
+        dict({
+          'delay': 120,
+          'headsign': 'Terminus',
+          'line': '11',
+          'predicted': '2026-11-02T12:07:00+00:00',
+          'route_type': 3,
+          'scheduled': '2026-11-02T12:05:00+00:00',
+          'status': 'predicted',
+        }),
+        dict({
+          'delay': None,
+          'headsign': 'Terminus',
+          'line': '11',
+          'predicted': None,
+          'route_type': 3,
+          'scheduled': '2026-11-02T12:09:00+00:00',
+          'status': 'cancelled',
+        }),
+      ]),
+      <EntityStateAttribute.DEVICE_CLASS: 'device_class'>: 'timestamp',
+      <EntityStateAttribute.FRIENDLY_NAME: 'friendly_name'>: 'Alfa Next departure',
+      'headsign': 'Terminus',
+      'line': '11',
+      'realtime': True,
+      'timetable_url': 'https://example.test/a',
+    }),
+  )
+# ---
