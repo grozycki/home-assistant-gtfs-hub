@@ -24,6 +24,7 @@ from gtfs_hub import (
 )
 
 from .const import (
+    CONF_LIVE_INTERVAL,
     CONF_PERSONS,
     CONF_ROUTE_TYPE,
     CONF_SHORT_NAME,
@@ -148,7 +149,9 @@ class DeparturesCoordinator(DataUpdateCoordinator[DeparturesData]):
             _LOGGER,
             config_entry=entry,
             name=f"{DOMAIN}_departures",
-            update_interval=DEPARTURES_INTERVAL,
+            update_interval=timedelta(
+                seconds=entry.options.get(CONF_LIVE_INTERVAL, DEPARTURES_INTERVAL.total_seconds())
+            ),
         )
         self.hub = hub
         self.schedule = schedule

@@ -15,6 +15,7 @@ CONF_PROVIDER: Final = "provider"
 CONF_SCHEDULE_URL: Final = "schedule_url"
 CONF_TRIP_UPDATES_URL: Final = "trip_updates_url"
 CONF_PERSONS: Final = "persons"
+CONF_LIVE_INTERVAL: Final = "live_interval"
 CONF_STOPS: Final = "stops"
 CONF_ROUTE_TYPE: Final = "route_type"
 CONF_SHORT_NAME: Final = "short_name"
@@ -29,4 +30,6 @@ SUBENTRY_STOP: Final = "stop"
 SCHEDULE_INTERVAL: Final = timedelta(hours=6)
 SCHEDULE_RETRY_INTERVAL: Final = timedelta(minutes=15)
 DEPARTURES_INTERVAL: Final = timedelta(seconds=30)
+MIN_LIVE_INTERVAL: Final = 15
+MAX_LIVE_INTERVAL: Final = 600
 LIST_LIMIT: Final = 5
