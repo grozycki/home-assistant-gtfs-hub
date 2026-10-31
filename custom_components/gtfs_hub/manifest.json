@@ -1,0 +1,23 @@
+{
+  "domain": "gtfs_hub",
+  "name": "GTFS Hub",
+  "after_dependencies": [
+    "person"
+  ],
+  "codeowners": [
+    "@grozycki"
+  ],
+  "config_flow": true,
+  "documentation": "https://github.com/grozycki/home-assistant-gtfs-hub",
+  "integration_type": "hub",
+  "iot_class": "cloud_polling",
+  "issue_tracker": "https://github.com/grozycki/home-assistant-gtfs-hub/issues",
+  "loggers": [
+    "gtfs_hub"
+  ],
+  "requirements": [
+    "gtfs-hub==0.1.0",
+    "gtfs-hub-gzm==0.1.0"
+  ],
+  "version": "0.1.0"
+}

@@ -1,0 +1,151 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "Choose a data source",
+        "data": {
+          "provider": "Source"
+        }
+      },
+      "generic": {
+        "title": "GTFS from URLs",
+        "description": "The schedule must be a GTFS ZIP file.",
+        "data": {
+          "schedule_url": "Schedule URL",
+          "trip_updates_url": "Trip updates URL (optional)"
+        }
+      }
+    },
+    "error": {
+      "cannot_connect": "Could not reach the source.",
+      "invalid_feed": "The source returned unusable data.",
+      "unknown": "Unexpected error."
+    },
+    "abort": {
+      "already_configured": "This source is already configured."
+    }
+  },
+  "selector": {
+    "provider": {
+      "options": {
+        "generic": "Other GTFS source (URLs)",
+        "gzm": "GZM"
+      }
+    }
+  },
+  "config_subentries": {
+    "line": {
+      "entry_type": "Line",
+      "initiate_flow": {
+        "user": "Add line"
+      },
+      "step": {
+        "user": {
+          "title": "Find a line",
+          "data": {
+            "query": "Number or name"
+          }
+        },
+        "pick": {
+          "title": "Choose a line",
+          "data": {
+            "line": "Line"
+          }
+        }
+      },
+      "error": {
+        "no_matches": "Nothing found."
+      },
+      "abort": {
+        "already_configured": "This line is already added.",
+        "entry_not_loaded": "The source is not loaded.",
+        "catalogue_not_ready": "The schedule is still downloading. Try again in a minute."
+      }
+    },
+    "stop": {
+      "entry_type": "Stop",
+      "initiate_flow": {
+        "user": "Add stop"
+      },
+      "step": {
+        "user": {
+          "title": "Find a stop of your lines",
+          "data": {
+            "query": "Name or code"
+          }
+        },
+        "pick": {
+          "title": "Choose a stop",
+          "data": {
+            "stop": "Stop"
+          }
+        }
+      },
+      "error": {
+        "no_matches": "No matching stop on your lines."
+      },
+      "abort": {
+        "already_configured": "This stop is already added.",
+        "entry_not_loaded": "The source is not loaded.",
+        "no_lines": "Add a line first, and wait for its schedule to download."
+      }
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "Nearest stop",
+        "description": "Each chosen person gets a sensor showing the closest stop of your lines.",
+        "data": {
+          "persons": "Persons"
+        }
+      }
+    }
+  },
+  "entity": {
+    "sensor": {
+      "next_departure": {
+        "name": "Next departure"
+      },
+      "delay": {
+        "name": "Delay"
+      },
+      "nearest_stop": {
+        "name": "Nearest stop {person}"
+      }
+    },
+    "binary_sensor": {
+      "live_data": {
+        "name": "Live data"
+      }
+    }
+  },
+  "exceptions": {
+    "unknown_stop": {
+      "message": "Stop {stop} is not on any selected line."
+    },
+    "no_schedule": {
+      "message": "No schedule is available."
+    }
+  },
+  "services": {
+    "get_departures": {
+      "name": "Get departures",
+      "description": "Returns upcoming departures of tracked lines from a stop.",
+      "fields": {
+        "config_entry_id": {
+          "name": "Source",
+          "description": "The configured source."
+        },
+        "stop_key": {
+          "name": "Stop",
+          "description": "The stop key, such as its code."
+        },
+        "limit": {
+          "name": "Limit",
+          "description": "How many departures to return."
+        }
+      }
+    }
+  }
+}

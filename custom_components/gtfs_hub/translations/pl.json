@@ -1,0 +1,151 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "Wybierz źródło danych",
+        "data": {
+          "provider": "Źródło"
+        }
+      },
+      "generic": {
+        "title": "GTFS z adresów URL",
+        "description": "Rozkład musi być plikiem ZIP GTFS.",
+        "data": {
+          "schedule_url": "Adres rozkładu",
+          "trip_updates_url": "Adres aktualizacji kursów (opcjonalnie)"
+        }
+      }
+    },
+    "error": {
+      "cannot_connect": "Nie można połączyć się ze źródłem.",
+      "invalid_feed": "Źródło zwróciło nieprzydatne dane.",
+      "unknown": "Nieoczekiwany błąd."
+    },
+    "abort": {
+      "already_configured": "To źródło jest już skonfigurowane."
+    }
+  },
+  "selector": {
+    "provider": {
+      "options": {
+        "generic": "Inne źródło GTFS (adresy URL)",
+        "gzm": "GZM"
+      }
+    }
+  },
+  "config_subentries": {
+    "line": {
+      "entry_type": "Linia",
+      "initiate_flow": {
+        "user": "Dodaj linię"
+      },
+      "step": {
+        "user": {
+          "title": "Znajdź linię",
+          "data": {
+            "query": "Numer lub nazwa"
+          }
+        },
+        "pick": {
+          "title": "Wybierz linię",
+          "data": {
+            "line": "Linia"
+          }
+        }
+      },
+      "error": {
+        "no_matches": "Nic nie znaleziono."
+      },
+      "abort": {
+        "already_configured": "Ta linia jest już dodana.",
+        "entry_not_loaded": "Źródło nie jest załadowane.",
+        "catalogue_not_ready": "Rozkład wciąż się pobiera. Spróbuj za minutę."
+      }
+    },
+    "stop": {
+      "entry_type": "Przystanek",
+      "initiate_flow": {
+        "user": "Dodaj przystanek"
+      },
+      "step": {
+        "user": {
+          "title": "Znajdź przystanek na swoich liniach",
+          "data": {
+            "query": "Nazwa lub kod"
+          }
+        },
+        "pick": {
+          "title": "Wybierz przystanek",
+          "data": {
+            "stop": "Przystanek"
+          }
+        }
+      },
+      "error": {
+        "no_matches": "Brak takiego przystanku na Twoich liniach."
+      },
+      "abort": {
+        "already_configured": "Ten przystanek jest już dodany.",
+        "entry_not_loaded": "Źródło nie jest załadowane.",
+        "no_lines": "Najpierw dodaj linię i poczekaj na pobranie rozkładu."
+      }
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "Najbliższy przystanek",
+        "description": "Każda wybrana osoba dostanie sensor z najbliższym przystankiem Twoich linii.",
+        "data": {
+          "persons": "Osoby"
+        }
+      }
+    }
+  },
+  "entity": {
+    "sensor": {
+      "next_departure": {
+        "name": "Następny odjazd"
+      },
+      "delay": {
+        "name": "Opóźnienie"
+      },
+      "nearest_stop": {
+        "name": "Najbliższy przystanek {person}"
+      }
+    },
+    "binary_sensor": {
+      "live_data": {
+        "name": "Dane na żywo"
+      }
+    }
+  },
+  "exceptions": {
+    "unknown_stop": {
+      "message": "Przystanek {stop} nie leży na żadnej wybranej linii."
+    },
+    "no_schedule": {
+      "message": "Brak dostępnego rozkładu."
+    }
+  },
+  "services": {
+    "get_departures": {
+      "name": "Pobierz odjazdy",
+      "description": "Zwraca najbliższe odjazdy śledzonych linii z przystanku.",
+      "fields": {
+        "config_entry_id": {
+          "name": "Źródło",
+          "description": "Skonfigurowane źródło."
+        },
+        "stop_key": {
+          "name": "Przystanek",
+          "description": "Klucz przystanku, np. jego kod."
+        },
+        "limit": {
+          "name": "Limit",
+          "description": "Ile odjazdów zwrócić."
+        }
+      }
+    }
+  }
+}
