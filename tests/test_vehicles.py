@@ -1,11 +1,12 @@
 """Vehicles on the map, behind their gate."""
 
+from dataclasses import replace
 from typing import TYPE_CHECKING
 from unittest.mock import patch
 
 import pytest
 from custom_components.gtfs_hub.const import DEMO_VEHICLES_VARIABLE, DEPARTURES_INTERVAL
-from custom_components.gtfs_hub.marker import marker_svg, marker_url
+from custom_components.gtfs_hub.marker import form_of, marker_svg, marker_url
 from homeassistant.const import STATE_UNAVAILABLE
 from homeassistant.helpers import entity_registry as er
 from homeassistant.setup import async_setup_component
@@ -23,6 +24,7 @@ from conftest import (
     stop_subentry,
     vehicle,
 )
+from gtfs_hub import VehicleClass
 
 if TYPE_CHECKING:
     from collections.abc import Generator
@@ -74,7 +76,7 @@ async def test_vehicle_appears_on_the_map(
     assert state.attributes["latitude"] == 50.0
     assert state.attributes["line"] == "11"
     assert state.attributes["derived_bearing"] is None
-    assert state.attributes["entity_picture"] == "/api/gtfs_hub/marker/3/none/11"
+    assert state.attributes["entity_picture"] == "/api/gtfs_hub/marker/3/standard/none/11"
 
 
 @pytest.mark.usefixtures("demo")
@@ -108,7 +110,7 @@ async def test_direction_needs_real_movement(
     await tick(hass, freezer)
     state = get_state(hass, TRACKER)
     assert state.attributes["derived_bearing"] == pytest.approx(0, abs=1)
-    assert state.attributes["entity_picture"] == "/api/gtfs_hub/marker/3/0/11"
+    assert state.attributes["entity_picture"] == "/api/gtfs_hub/marker/3/standard/0/11"
 
 
 @pytest.mark.usefixtures("demo")
@@ -131,15 +133,58 @@ async def test_pinned_stop_has_coordinates(hass: HomeAssistant, hub: FakeHub) ->
 
 
 def test_marker_urls_round_the_bearing() -> None:
-    assert marker_url(3, "11", None) == "/api/gtfs_hub/marker/3/none/11"
-    assert marker_url(3, "11", 97.0) == "/api/gtfs_hub/marker/3/90/11"
-    assert marker_url(3, "11", 359.0) == "/api/gtfs_hub/marker/3/0/11"
+    assert marker_url(3, "long", "11", None) == "/api/gtfs_hub/marker/3/long/none/11"
+    assert marker_url(3, "long", "11", 97.0) == "/api/gtfs_hub/marker/3/long/90/11"
+    assert marker_url(3, "long", "11", 359.0) == "/api/gtfs_hub/marker/3/long/0/11"
 
 
-def test_marker_draws_line_and_arrow() -> None:
-    assert "rotate(90 50 50)" in marker_svg(3, "11", 90)
-    assert "rotate" not in marker_svg(3, "11", None)
-    assert "&lt;" in marker_svg(3, "<x", None)
+@pytest.mark.parametrize(
+    ("planned", "form"),
+    [
+        (None, "standard"),
+        (VehicleClass("x"), "standard"),
+        (VehicleClass("M N", 8, 1, True), "short-low"),
+        (VehicleClass("B N", 12, 1, True), "standard-low"),
+        (VehicleClass("C N", 18, 1, False), "long"),
+        (VehicleClass("2x105HF", None, 2, False), "double"),
+    ],
+)
+def test_form_of(planned: VehicleClass | None, form: str) -> None:
+    assert form_of(planned) == form
+
+
+def test_marker_draws_line_arrow_and_ring() -> None:
+    assert "rotate(90 50 50)" in marker_svg(3, "standard", "11", 90)
+    assert "rotate" not in marker_svg(3, "standard", "11", None)
+    assert "&lt;" in marker_svg(3, "standard", "<x", None)
+    assert 'r="45"' in marker_svg(3, "standard-low", "11", None)
+    assert 'r="45"' not in marker_svg(3, "standard", "11", None)
+
+
+@pytest.mark.parametrize("route_type", [3, 0, 11])
+@pytest.mark.parametrize("form", ["short", "standard", "long", "double"])
+def test_every_picture_differs_by_form_and_mode(route_type: int, form: str) -> None:
+    pictures = {
+        marker_svg(route_type, name, "1", None) for name in ("short", "standard", "long", "double")
+    }
+    assert len(pictures) == 4
+    assert marker_svg(route_type, form, "1", None) != marker_svg(
+        (route_type + 3) % 14, form, "1", None
+    )
+
+
+@pytest.mark.usefixtures("demo")
+async def test_planned_class_in_attributes(
+    hass: HomeAssistant, hub: FakeHub, freezer: FrozenDateTimeFactory
+) -> None:
+    hub.vehicles = [replace(vehicle(), planned_class=VehicleClass("C N", 18, 1, True))]
+    await setup(hass, hub)
+    await tick(hass, freezer)
+    state = get_state(hass, TRACKER)
+    assert state.attributes["planned_vehicle"] == "C N"
+    assert state.attributes["length"] == 18
+    assert state.attributes["low_floor"] is True
+    assert "/long-low/" in state.attributes["entity_picture"]
 
 
 async def test_marker_view(
@@ -148,10 +193,10 @@ async def test_marker_view(
     await async_setup_component(hass, "http", {})
     await setup(hass, hub)
     client = await hass_client_no_auth()
-    response = await client.get("/api/gtfs_hub/marker/3/90/11")
+    response = await client.get("/api/gtfs_hub/marker/3/long-low/90/11")
     assert response.status == 200
     assert response.content_type == "image/svg+xml"
-    assert (await client.get("/api/gtfs_hub/marker/3/bad/11")).status == 404
+    assert (await client.get("/api/gtfs_hub/marker/3/long/bad/11")).status == 404
 
 
 @pytest.mark.usefixtures("demo")
@@ -170,4 +215,4 @@ async def test_vehicle_returns_at_the_same_place(
 
 
 def test_marker_url_quotes_the_line() -> None:
-    assert marker_url(3, "T/6", None) == "/api/gtfs_hub/marker/3/none/T%2F6"
+    assert marker_url(3, "long", "T/6", None) == "/api/gtfs_hub/marker/3/long/none/T%2F6"

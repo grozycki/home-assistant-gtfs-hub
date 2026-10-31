@@ -57,6 +57,7 @@ from .const import (
     SUBENTRY_LINE,
     SUBENTRY_STOP,
 )
+from .marker import mode_of
 
 if TYPE_CHECKING:
     import asyncio
@@ -68,17 +69,6 @@ if TYPE_CHECKING:
 _LOGGER = logging.getLogger(__name__)
 _URL = TextSelector(TextSelectorConfig(type=TextSelectorType.URL))
 _MODES = ("bus", "tram", "trolleybus", "other")
-
-
-def _mode_of(route_type: int) -> str:
-    """Return the field of a line, for basic and extended route types."""
-    if route_type == 3 or 700 <= route_type < 800:
-        return "bus"
-    if route_type == 0 or 900 <= route_type < 1000:
-        return "tram"
-    if route_type == 11 or 800 <= route_type < 900:
-        return "trolleybus"
-    return "other"
 
 
 def _line_value(key: LineKey) -> str:
@@ -190,7 +180,7 @@ class _SelectionFlow(ConfigEntryBaseFlow):
         current = self._current_lines()
         fields: dict[vol.Marker, SelectSelector] = {}
         for mode in _MODES:
-            lines = [line for line in self._lines if _mode_of(line.key.route_type) == mode]
+            lines = [line for line in self._lines if mode_of(line.key.route_type) == mode]
             if not lines:
                 continue
             options = [

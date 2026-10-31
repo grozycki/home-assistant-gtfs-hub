@@ -10,7 +10,7 @@ from gtfs_hub import LineKey
 
 from .const import CONF_ROUTE_TYPE, CONF_SHORT_NAME, SUBENTRY_LINE
 from .coordinator import DeparturesCoordinator, GtfsHubConfigEntry, TrackedVehicle
-from .marker import marker_url
+from .marker import form_of, marker_url
 
 if TYPE_CHECKING:
     from collections.abc import Mapping
@@ -100,15 +100,24 @@ class VehicleTracker(CoordinatorEntity[DeparturesCoordinator], TrackerEntity):
     @override
     def entity_picture(self) -> str:
         """Return a marker with the line and direction."""
-        line = self._last.vehicle.line
-        return marker_url(line.route_type, line.short_name, self._last.derived_bearing)
+        vehicle = self._last.vehicle
+        return marker_url(
+            vehicle.line.route_type,
+            form_of(vehicle.planned_class),
+            vehicle.line.short_name,
+            self._last.derived_bearing,
+        )
 
     @property
     @override
     def extra_state_attributes(self) -> Mapping[str, object]:
         """Return what the feed says, and the direction worked out from movement."""
         vehicle = self._last.vehicle
+        planned = vehicle.planned_class
         return {
+            "planned_vehicle": planned.name if planned else None,
+            "length": planned.length if planned else None,
+            "low_floor": planned.low_floor if planned else None,
             "line": vehicle.line.short_name,
             "headsign": vehicle.headsign,
             "trip_id": vehicle.trip_id,
