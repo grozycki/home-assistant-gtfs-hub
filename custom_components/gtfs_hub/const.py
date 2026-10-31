@@ -6,7 +6,10 @@ from typing import Final
 from homeassistant.const import Platform
 
 DOMAIN: Final = "gtfs_hub"
-PLATFORMS: Final = [Platform.BINARY_SENSOR, Platform.SENSOR]
+PLATFORMS: Final = [Platform.BINARY_SENSOR, Platform.DEVICE_TRACKER, Platform.SENSOR]
+
+# Shows vehicles on a test instance before their identity is proven.
+DEMO_VEHICLES_VARIABLE: Final = "GTFS_HUB_DEMO_VEHICLES"
 
 CONF_PROVIDER: Final = "provider"
 CONF_SCHEDULE_URL: Final = "schedule_url"

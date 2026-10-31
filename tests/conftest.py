@@ -24,6 +24,8 @@ from gtfs_hub import (
     StopChoice,
     StopKey,
     TripId,
+    Vehicle,
+    VehicleKey,
 )
 
 if TYPE_CHECKING:
@@ -81,6 +83,8 @@ class FakeHub:
     realtime: RealtimeData | None = None
     departures: dict[StopKey, list[Departure]] = field(default_factory=dict)
     synced: list[list[LineKey]] = field(default_factory=list)
+    vehicles: list[Vehicle] = field(default_factory=list)
+    provider: FakeProvider = field(default_factory=lambda: FakeProvider())
 
     async def async_sync(self, selection: Collection[LineKey]) -> None:
         self.synced.append(list(selection))
@@ -91,6 +95,9 @@ class FakeHub:
         if not self.ready:
             raise GtfsNoDataError("empty")
         return [STOP_A, STOP_B]
+
+    async def async_fetch_vehicles(self) -> list[Vehicle]:
+        return self.vehicles
 
     async def async_snapshots(self) -> list[Snapshot]:
         if not self.ready:
@@ -189,3 +196,7 @@ def get_state(hass: HomeAssistant, entity_id: str) -> State:
     state = hass.states.get(entity_id)
     assert state is not None
     return state
+
+
+def vehicle(trip: str = "t1", latitude: float = 50.0, longitude: float = 19.0) -> Vehicle:
+    return Vehicle(VehicleKey("v1"), LINE_11, TripId(trip), "Terminus", latitude, longitude, NOW)

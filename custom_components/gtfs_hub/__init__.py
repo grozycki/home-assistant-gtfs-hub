@@ -31,6 +31,7 @@ from .coordinator import (
     GtfsHubRuntime,
     ScheduleCoordinator,
 )
+from .marker import MarkerView
 from .services import async_setup_services
 
 if TYPE_CHECKING:
@@ -44,6 +45,7 @@ CONFIG_SCHEMA = cv.config_entry_only_config_schema(DOMAIN)
 async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
     """Register the actions."""
     async_setup_services(hass)
+    hass.http.register_view(MarkerView())
     return True
 
 

@@ -8,6 +8,9 @@
     "@grozycki"
   ],
   "config_flow": true,
+  "dependencies": [
+    "http"
+  ],
   "documentation": "https://github.com/grozycki/home-assistant-gtfs-hub",
   "integration_type": "hub",
   "iot_class": "cloud_polling",

@@ -21,6 +21,15 @@ def distance(lat1: float, lon1: float, lat2: float, lon2: float) -> float:
     return 6_371_000 * 2 * math.asin(math.sqrt(term))
 
 
+def bearing(lat1: float, lon1: float, lat2: float, lon2: float) -> float:
+    """Return the initial bearing in degrees clockwise from north."""
+    phi1, phi2 = math.radians(lat1), math.radians(lat2)
+    delta = math.radians(lon2 - lon1)
+    east = math.sin(delta) * math.cos(phi2)
+    north = math.cos(phi1) * math.sin(phi2) - math.sin(phi1) * math.cos(phi2) * math.cos(delta)
+    return math.degrees(math.atan2(east, north)) % 360
+
+
 def find_nearest(
     latitude: float, longitude: float, stops: Iterable[Stop], current: str | None
 ) -> tuple[Stop, float] | None:

@@ -1,6 +1,7 @@
 """Fetch the schedule and the departures, on their two different clocks."""
 
 import logging
+import os
 from dataclasses import dataclass, field
 from datetime import timedelta
 from typing import TYPE_CHECKING, override
@@ -19,6 +20,7 @@ from gtfs_hub import (
     RealtimeData,
     Stop,
     StopKey,
+    Vehicle,
 )
 
 from .const import (
@@ -26,6 +28,7 @@ from .const import (
     CONF_ROUTE_TYPE,
     CONF_SHORT_NAME,
     CONF_STOP_KEY,
+    DEMO_VEHICLES_VARIABLE,
     DEPARTURES_INTERVAL,
     DOMAIN,
     LIST_LIMIT,
@@ -34,13 +37,19 @@ from .const import (
     SUBENTRY_LINE,
     SUBENTRY_STOP,
 )
-from .nearest import find_nearest
+from .nearest import bearing, distance, find_nearest
 
 if TYPE_CHECKING:
     from homeassistant.core import HomeAssistant
 
 _LOGGER = logging.getLogger(__name__)
 _MAX_AGE = timedelta(minutes=5)
+MIN_MOVEMENT = 20
+
+
+def vehicle_id(vehicle: Vehicle) -> str:
+    """Return an identity free of trips, as a new trip must not make a new entity."""
+    return f"{vehicle.line.route_type}:{vehicle.line.short_name}:{vehicle.key}"
 
 
 @dataclass(frozen=True, slots=True)
@@ -59,12 +68,21 @@ class NearestStop:
 
 
 @dataclass(frozen=True, slots=True)
+class TrackedVehicle:
+    """A vehicle with a direction worked out from its movement."""
+
+    vehicle: Vehicle
+    derived_bearing: float | None
+
+
+@dataclass(frozen=True, slots=True)
 class DeparturesData:
     """One tick of departures."""
 
     departures: dict[StopKey, list[Departure]] = field(default_factory=dict)
     nearest: dict[str, NearestStop | None] = field(default_factory=dict)
     live: bool = False
+    vehicles: dict[str, TrackedVehicle] = field(default_factory=dict)
 
 
 class ScheduleCoordinator(DataUpdateCoordinator[ScheduleData]):
@@ -139,6 +157,11 @@ class DeparturesCoordinator(DataUpdateCoordinator[DeparturesData]):
         # Entities exist before the first sync ends, and stay unavailable until then.
         self.data = DeparturesData()
         self.last_update_success = False
+        self.tracks_vehicles = (
+            hub.provider.capabilities.stable_vehicle_id
+            or os.environ.get(DEMO_VEHICLES_VARIABLE) == "1"
+        )
+        self._anchors: dict[str, tuple[float, float, float | None]] = {}
 
     def _pinned(self) -> list[StopKey]:
         return [
@@ -176,6 +199,33 @@ class DeparturesCoordinator(DataUpdateCoordinator[DeparturesData]):
                 _LOGGER.info("Live data is back")
             self._feed_down = False
 
+    async def _async_vehicles(self) -> dict[str, TrackedVehicle]:
+        if not self.tracks_vehicles:
+            return {}
+        try:
+            vehicles = await self.hub.async_fetch_vehicles()
+        except GtfsError as err:
+            _LOGGER.debug("Vehicle positions unavailable: %s", err)
+            return {}
+        return {
+            vehicle_id(vehicle): TrackedVehicle(vehicle, self._direction(vehicle))
+            for vehicle in vehicles
+        }
+
+    def _direction(self, vehicle: Vehicle) -> float | None:
+        """Work out a direction once a vehicle has moved far enough to trust it."""
+        key = vehicle_id(vehicle)
+        anchor = self._anchors.get(key)
+        if anchor is None:
+            self._anchors[key] = (vehicle.latitude, vehicle.longitude, None)
+            return None
+        latitude, longitude, held = anchor
+        if distance(latitude, longitude, vehicle.latitude, vehicle.longitude) < MIN_MOVEMENT:
+            return held
+        direction = bearing(latitude, longitude, vehicle.latitude, vehicle.longitude)
+        self._anchors[key] = (vehicle.latitude, vehicle.longitude, direction)
+        return direction
+
     @override
     async def _async_update_data(self) -> DeparturesData:
         if not self.schedule.last_update_success:
@@ -184,9 +234,10 @@ class DeparturesCoordinator(DataUpdateCoordinator[DeparturesData]):
         nearest = self._nearest(stops)
         wanted = set(self._pinned())
         wanted.update(item.stop.key for item in nearest.values() if item is not None)
+        vehicles = await self._async_vehicles()
         if not wanted:
             self.realtime = None
-            return DeparturesData(nearest=nearest)
+            return DeparturesData(nearest=nearest, vehicles=vehicles)
         await self._async_fetch_realtime()
         realtime = self.realtime
         live = realtime is not None and not realtime.is_stale(dt_util.utcnow(), _MAX_AGE)
@@ -198,7 +249,7 @@ class DeparturesCoordinator(DataUpdateCoordinator[DeparturesData]):
                 )
         except GtfsNoDataError as err:
             raise UpdateFailed(f"No schedule available: {err}") from err
-        return DeparturesData(departures, nearest, live)
+        return DeparturesData(departures, nearest, live, vehicles)
 
 
 @dataclass(slots=True)
