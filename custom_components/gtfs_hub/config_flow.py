@@ -9,6 +9,7 @@ import probatio as vol
 from homeassistant.config_entries import (
     ConfigEntry,
     ConfigEntryBaseFlow,
+    ConfigEntryState,
     ConfigFlow,
     ConfigFlowResult,
     ConfigSubentry,
@@ -397,12 +398,23 @@ class GtfsHubConfigFlow(_SelectionFlow, ConfigFlow, domain=DOMAIN):
     @override
     def async_remove(self) -> None:
         """Delete what an abandoned setup downloaded."""
-        if self._task is not None:
-            self._task.cancel()
+        job = self._task
         if self.unique_id is None or self._created or not hasattr(self, "_flow_hub"):
+            if job is not None:
+                job.cancel()
             return
         path = self._path()
-        _ = self.hass.async_add_executor_job(lambda: path.unlink(missing_ok=True))
+
+        @callback
+        def delete(_: object = None) -> None:
+            _ = self.hass.async_add_executor_job(lambda: path.unlink(missing_ok=True))
+
+        if job is None:
+            delete()
+        else:
+            # A running download could still swap its file in, so delete after it.
+            job.add_done_callback(delete)
+            job.cancel()
 
 
 class GtfsHubOptionsFlow(_SelectionFlow, OptionsFlow):
@@ -419,7 +431,7 @@ class GtfsHubOptionsFlow(_SelectionFlow, OptionsFlow):
     @override
     def _current_lines(self) -> list[str]:
         return [
-            f"{item.data[CONF_ROUTE_TYPE]}:{item.data[CONF_SHORT_NAME]}"
+            _line_value(LineKey(item.data[CONF_ROUTE_TYPE], item.data[CONF_SHORT_NAME]))
             for item in self._entry.get_subentries_of_type(SUBENTRY_LINE)
         ]
 
@@ -436,7 +448,12 @@ class GtfsHubOptionsFlow(_SelectionFlow, OptionsFlow):
 
     async def async_step_init(self, user_input: dict[str, Any] | None = None) -> ConfigFlowResult:
         """Read the lines, then show them."""
-        self._lines = await self._hub().async_list_lines()
+        if self._entry.state is not ConfigEntryState.LOADED:
+            return self.async_abort(reason="entry_not_loaded")
+        try:
+            self._lines = await self._hub().async_list_lines()
+        except GtfsError:
+            return self.async_abort(reason="download_failed")
         return await self.async_step_lines()
 
     @override
@@ -475,5 +492,7 @@ class GtfsHubOptionsFlow(_SelectionFlow, OptionsFlow):
                     ),
                 )
         entry.runtime_data.applying = False
-        manager.async_schedule_reload(entry.entry_id)
+        # New options reload the entry through its listener, so only same ones need this.
+        if persons == self._current_persons():
+            manager.async_schedule_reload(entry.entry_id)
         return self.async_create_entry(data={CONF_PERSONS: persons})

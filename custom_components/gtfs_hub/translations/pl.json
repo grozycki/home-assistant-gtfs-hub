@@ -122,7 +122,8 @@
       "no_lines": "Wybierz co najmniej jedną linię."
     },
     "abort": {
-      "download_failed": "Nie udało się pobrać rozkładu. Spróbuj później."
+      "download_failed": "Nie udało się pobrać rozkładu. Spróbuj później.",
+      "entry_not_loaded": "Źródło nie jest załadowane."
     }
   },
   "entity": {

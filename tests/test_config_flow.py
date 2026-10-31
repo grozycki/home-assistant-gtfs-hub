@@ -223,18 +223,37 @@ async def test_options_fill_in_current_choices(hass: HomeAssistant, hub: FakeHub
 async def test_options_add_and_remove_with_one_reload(hass: HomeAssistant, hub: FakeHub) -> None:
     entry = await _setup(hass, line_subentry(), stop_subentry())
     with patch.object(
-        hass.config_entries,
-        "async_schedule_reload",
-        wraps=hass.config_entries.async_schedule_reload,
+        hass.config_entries, "async_reload", wraps=hass.config_entries.async_reload
     ) as reload:
         result = await _options(hass, entry, {"tram": ["0:11"]}, ["B"])
-    assert result["type"] is FlowResultType.CREATE_ENTRY
+        assert result["type"] is FlowResultType.CREATE_ENTRY
+        await hass.async_block_till_done()
     reload.assert_called_once_with(entry.entry_id)
-    await hass.async_block_till_done()
     assert [item.unique_id for item in entry.get_subentries_of_type("line")] == ["0:11"]
     assert [item.unique_id for item in entry.get_subentries_of_type("stop")] == ["B"]
     assert entry.options == {"persons": ["person.ania"]}
     assert hass.states.get("sensor.fake_nearest_stop_ania") is not None
+
+
+async def test_options_on_an_unloaded_entry(hass: HomeAssistant, hub: FakeHub) -> None:
+    entry = make_entry()
+    entry.add_to_hass(hass)
+    result = await hass.config_entries.options.async_init(entry.entry_id)
+    assert result["reason"] == "entry_not_loaded"
+
+
+async def test_options_with_no_schedule(hass: HomeAssistant, hub: FakeHub) -> None:
+    entry = await _setup(hass, line_subentry())
+    hub.ready = False
+    result = await hass.config_entries.options.async_init(entry.entry_id)
+    assert result["reason"] == "download_failed"
+
+
+async def test_same_persons_still_reload(hass: HomeAssistant, hub: FakeHub) -> None:
+    entry = await _setup(hass, line_subentry(), options={"persons": ["person.ania"]})
+    with patch.object(hass.config_entries, "async_schedule_reload") as reload:
+        await _options(hass, entry, {"bus": ["3:11"]}, [])
+    reload.assert_called_once_with(entry.entry_id)
 
 
 async def test_options_keep_unchanged_choices(hass: HomeAssistant, hub: FakeHub) -> None:

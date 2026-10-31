@@ -122,7 +122,8 @@
       "no_lines": "Choose at least one line."
     },
     "abort": {
-      "download_failed": "The schedule could not be downloaded. Try again later."
+      "download_failed": "The schedule could not be downloaded. Try again later.",
+      "entry_not_loaded": "The source is not loaded."
     }
   },
   "entity": {
