@@ -164,7 +164,7 @@ def hub() -> Generator[FakeHub]:
 
 
 def make_entry(
-    *subentries: ConfigSubentryData, options: dict[str, list[str]] | None = None
+    *subentries: ConfigSubentryData, options: dict[str, list[str] | int] | None = None
 ) -> MockConfigEntry:
     return MockConfigEntry(
         domain=DOMAIN,

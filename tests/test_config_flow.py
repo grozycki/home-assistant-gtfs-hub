@@ -1,3 +1,4 @@
+from datetime import timedelta
 from typing import TYPE_CHECKING
 from unittest.mock import patch
 
@@ -81,7 +82,7 @@ async def test_full_setup(hass: HomeAssistant, hub: FakeHub) -> None:
         )
     assert result["type"] is FlowResultType.CREATE_ENTRY
     assert result["title"] == "Fake"
-    assert result["options"] == {"persons": ["person.ania"]}
+    assert result["options"] == {"persons": ["person.ania"], "live_interval": 30}
     await hass.async_block_till_done()
     entry = result["result"]
     assert len(entry.get_subentries_of_type("line")) == 2
@@ -188,7 +189,7 @@ async def test_abandoned_setup_deletes_its_database(hass: HomeAssistant, hub: Fa
 async def _setup(
     hass: HomeAssistant,
     *subentries: ConfigSubentryData,
-    options: dict[str, list[str]] | None = None,
+    options: dict[str, list[str] | int] | None = None,
 ) -> MockConfigEntry:
     entry = make_entry(*subentries, options=options)
     entry.add_to_hass(hass)
@@ -231,7 +232,7 @@ async def test_options_add_and_remove_with_one_reload(hass: HomeAssistant, hub: 
     reload.assert_called_once_with(entry.entry_id)
     assert [item.unique_id for item in entry.get_subentries_of_type("line")] == ["0:11"]
     assert [item.unique_id for item in entry.get_subentries_of_type("stop")] == ["B"]
-    assert entry.options == {"persons": ["person.ania"]}
+    assert entry.options == {"persons": ["person.ania"], "live_interval": 30}
     assert hass.states.get("sensor.fake_nearest_stop_ania") is not None
 
 
@@ -250,7 +251,9 @@ async def test_options_with_no_schedule(hass: HomeAssistant, hub: FakeHub) -> No
 
 
 async def test_same_persons_still_reload(hass: HomeAssistant, hub: FakeHub) -> None:
-    entry = await _setup(hass, line_subentry(), options={"persons": ["person.ania"]})
+    entry = await _setup(
+        hass, line_subentry(), options={"persons": ["person.ania"], "live_interval": 30}
+    )
     with patch.object(hass.config_entries, "async_schedule_reload") as reload:
         await _options(hass, entry, {"bus": ["3:11"]}, [])
     reload.assert_called_once_with(entry.entry_id)
@@ -262,3 +265,17 @@ async def test_options_keep_unchanged_choices(hass: HomeAssistant, hub: FakeHub)
     await _options(hass, entry, {"bus": ["3:11"]}, ["A"])
     await hass.async_block_till_done()
     assert set(entry.subentries) == ids
+
+
+async def test_live_interval_applies_after_saving(hass: HomeAssistant, hub: FakeHub) -> None:
+    entry = await _setup(hass, line_subentry())
+    assert entry.runtime_data.departures.update_interval == timedelta(seconds=30)
+    flow = hass.config_entries.options
+    result = await flow.async_init(entry.entry_id)
+    result = await flow.async_configure(result["flow_id"], {"bus": ["3:11"]})
+    result = await flow.async_configure(result["flow_id"], {})
+    result = await flow.async_configure(result["flow_id"], {"live_interval": 15})
+    assert result["type"] is FlowResultType.CREATE_ENTRY
+    await hass.async_block_till_done()
+    assert entry.options["live_interval"] == 15
+    assert entry.runtime_data.departures.update_interval == timedelta(seconds=15)

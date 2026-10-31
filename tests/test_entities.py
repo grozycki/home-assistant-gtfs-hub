@@ -48,7 +48,7 @@ def frozen(freezer: FrozenDateTimeFactory) -> None:
 async def setup(
     hass: HomeAssistant,
     *subentries: ConfigSubentryData,
-    options: dict[str, list[str]] | None = None,
+    options: dict[str, list[str] | int] | None = None,
 ) -> MockConfigEntry:
     entry = make_entry(*subentries, options=options)
     entry.add_to_hass(hass)

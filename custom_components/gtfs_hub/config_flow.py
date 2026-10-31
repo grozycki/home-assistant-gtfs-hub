@@ -21,6 +21,9 @@ from homeassistant.helpers.aiohttp_client import async_get_clientsession
 from homeassistant.helpers.selector import (
     EntitySelector,
     EntitySelectorConfig,
+    NumberSelector,
+    NumberSelectorConfig,
+    NumberSelectorMode,
     SelectOptionDict,
     SelectSelector,
     SelectSelectorConfig,
@@ -44,6 +47,7 @@ from gtfs_hub import (
 
 from . import async_build_provider, database_path
 from .const import (
+    CONF_LIVE_INTERVAL,
     CONF_PERSONS,
     CONF_PROVIDER,
     CONF_ROUTE_TYPE,
@@ -52,8 +56,11 @@ from .const import (
     CONF_STOP_KEY,
     CONF_STOPS,
     CONF_TRIP_UPDATES_URL,
+    DEPARTURES_INTERVAL,
     DOMAIN,
     GENERIC_PROVIDER,
+    MAX_LIVE_INTERVAL,
+    MIN_LIVE_INTERVAL,
     SUBENTRY_LINE,
     SUBENTRY_STOP,
 )
@@ -126,8 +133,12 @@ class _SelectionFlow(ConfigEntryBaseFlow):
     def _current_persons(self) -> list[str]:
         """Return the persons to fill in."""
 
+    def _current_interval(self) -> int:
+        """Return the live update interval to fill in."""
+        return int(DEPARTURES_INTERVAL.total_seconds())
+
     @abstractmethod
-    async def _async_finish(self, persons: list[str]) -> ConfigFlowResult:
+    async def _async_finish(self, settings: dict[str, Any]) -> ConfigFlowResult:
         """Apply the choices."""
 
     async def _async_load_lines(self) -> None:
@@ -242,12 +253,29 @@ class _SelectionFlow(ConfigEntryBaseFlow):
     ) -> ConfigFlowResult:
         """Choose persons for the nearest stop sensor."""
         if user_input is not None:
-            return await self._async_finish(user_input.get(CONF_PERSONS, []))
+            interval = user_input.get(CONF_LIVE_INTERVAL, self._current_interval())
+            return await self._async_finish(
+                {
+                    CONF_PERSONS: user_input.get(CONF_PERSONS, []),
+                    CONF_LIVE_INTERVAL: int(interval),
+                }
+            )
         schema = vol.Schema(
             {
                 vol.Optional(
                     CONF_PERSONS, description={"suggested_value": self._current_persons()}
-                ): EntitySelector(EntitySelectorConfig(domain="person", multiple=True))
+                ): EntitySelector(EntitySelectorConfig(domain="person", multiple=True)),
+                vol.Optional(
+                    CONF_LIVE_INTERVAL, description={"suggested_value": self._current_interval()}
+                ): NumberSelector(
+                    NumberSelectorConfig(
+                        min=MIN_LIVE_INTERVAL,
+                        max=MAX_LIVE_INTERVAL,
+                        step=5,
+                        mode=NumberSelectorMode.BOX,
+                        unit_of_measurement="s",
+                    )
+                ),
             }
         )
         return self.async_show_form(step_id="persons", data_schema=schema)
@@ -358,7 +386,7 @@ class GtfsHubConfigFlow(_SelectionFlow, ConfigFlow, domain=DOMAIN):
         return await self._async_progress("catalogue", self._async_load_lines, "lines")
 
     @override
-    async def _async_finish(self, persons: list[str]) -> ConfigFlowResult:
+    async def _async_finish(self, settings: dict[str, Any]) -> ConfigFlowResult:
         subentries: Sequence[ConfigSubentryData] = [
             ConfigSubentryData(
                 data=_line_subentry_data(line),
@@ -380,7 +408,7 @@ class GtfsHubConfigFlow(_SelectionFlow, ConfigFlow, domain=DOMAIN):
         return self.async_create_entry(
             title=self._provider.name,
             data=self._data,
-            options={CONF_PERSONS: persons},
+            options=settings,
             subentries=subentries,
         )
 
@@ -436,6 +464,10 @@ class GtfsHubOptionsFlow(_SelectionFlow, OptionsFlow):
         persons: list[str] = self._entry.options.get(CONF_PERSONS, [])
         return persons
 
+    @override
+    def _current_interval(self) -> int:
+        return int(self._entry.options.get(CONF_LIVE_INTERVAL, super()._current_interval()))
+
     async def async_step_init(self, user_input: dict[str, Any] | None = None) -> ConfigFlowResult:
         """Read the lines, then show them."""
         if self._entry.state is not ConfigEntryState.LOADED:
@@ -447,7 +479,7 @@ class GtfsHubOptionsFlow(_SelectionFlow, OptionsFlow):
         return await self.async_step_lines()
 
     @override
-    async def _async_finish(self, persons: list[str]) -> ConfigFlowResult:
+    async def _async_finish(self, settings: dict[str, Any]) -> ConfigFlowResult:
         entry = self._entry
         manager = self.hass.config_entries
         wanted: dict[str, tuple[str, dict[str, str | int], str]] = {
@@ -483,6 +515,6 @@ class GtfsHubOptionsFlow(_SelectionFlow, OptionsFlow):
                 )
         entry.runtime_data.applying = False
         # New options reload the entry through its listener, so only same ones need this.
-        if persons == self._current_persons():
+        if settings == dict(entry.options):
             manager.async_schedule_reload(entry.entry_id)
-        return self.async_create_entry(data={CONF_PERSONS: persons})
+        return self.async_create_entry(data=settings)

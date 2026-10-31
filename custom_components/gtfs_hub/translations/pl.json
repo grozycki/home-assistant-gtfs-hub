@@ -33,10 +33,11 @@
         }
       },
       "persons": {
-        "title": "Najbliższy przystanek",
-        "description": "Każda wybrana osoba dostanie sensor z najbliższym przystankiem Twoich linii.",
+        "title": "Dodatkowe ustawienia",
+        "description": "Każda wybrana osoba dostanie sensor z najbliższym przystankiem Twoich linii. GZM aktualizuje pozycje pojazdów mniej więcej co 15 s, a opóźnienia co 40 s, więc czas krótszy niż 15 s nic nie daje.",
         "data": {
-          "persons": "Osoby"
+          "persons": "Osoby",
+          "live_interval": "Częstotliwość odświeżania danych na żywo"
         }
       }
     },
@@ -107,10 +108,11 @@
         }
       },
       "persons": {
-        "title": "Najbliższy przystanek",
-        "description": "Każda wybrana osoba dostanie sensor z najbliższym przystankiem Twoich linii.",
+        "title": "Dodatkowe ustawienia",
+        "description": "Każda wybrana osoba dostanie sensor z najbliższym przystankiem Twoich linii. GZM aktualizuje pozycje pojazdów mniej więcej co 15 s, a opóźnienia co 40 s, więc czas krótszy niż 15 s nic nie daje.",
         "data": {
-          "persons": "Osoby"
+          "persons": "Osoby",
+          "live_interval": "Częstotliwość odświeżania danych na żywo"
         }
       }
     },

@@ -26,6 +26,7 @@ A vehicle marker shows the line, a picture by mode and size, and an arrow for it
 2. Choose your lines. Each mode has its own multi-select.
 3. Choose stops of those lines. Each shows its direction, lines and code.
 4. Optionally choose persons for the nearest stop sensor.
+5. Optionally change the live update interval, from 15 to 600 s. The default is 30 s.
 
 The entry's options repeat these steps, so you can change the selection at any time.
 

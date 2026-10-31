@@ -33,10 +33,11 @@
         }
       },
       "persons": {
-        "title": "Nearest stop",
-        "description": "Each chosen person gets a sensor showing the closest stop of your lines.",
+        "title": "Additional settings",
+        "description": "Each chosen person gets a sensor showing the closest stop of your lines. GZM moves vehicles about every 15 s and changes delays about every 40 s, so an interval below 15 s gives nothing.",
         "data": {
-          "persons": "Persons"
+          "persons": "Persons",
+          "live_interval": "Live update interval"
         }
       }
     },
@@ -107,10 +108,11 @@
         }
       },
       "persons": {
-        "title": "Nearest stop",
-        "description": "Each chosen person gets a sensor showing the closest stop of your lines.",
+        "title": "Additional settings",
+        "description": "Each chosen person gets a sensor showing the closest stop of your lines. GZM moves vehicles about every 15 s and changes delays about every 40 s, so an interval below 15 s gives nothing.",
         "data": {
-          "persons": "Persons"
+          "persons": "Persons",
+          "live_interval": "Live update interval"
         }
       }
     },
