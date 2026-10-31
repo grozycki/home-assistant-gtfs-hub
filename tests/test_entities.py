@@ -9,6 +9,7 @@ from custom_components.gtfs_hub.const import (
     SCHEDULE_INTERVAL,
     SCHEDULE_RETRY_INTERVAL,
 )
+from gtfs_hub.realtime import TripUpdate
 from homeassistant.config_entries import ConfigEntryState, ConfigSubentryData
 from homeassistant.const import STATE_OFF, STATE_ON, STATE_UNAVAILABLE, STATE_UNKNOWN
 from homeassistant.exceptions import ServiceValidationError
@@ -112,7 +113,7 @@ async def test_departures_are_not_recorded(hass: HomeAssistant, hub: FakeHub) ->
 async def test_realtime_failure_keeps_the_schedule(
     hass: HomeAssistant, hub: FakeHub, freezer: FrozenDateTimeFactory
 ) -> None:
-    hub.realtime = RealtimeData(NOW)
+    hub.realtime = RealtimeData(NOW, {"t1": TripUpdate("t1", None, False, ())})
     hub.departures[STOP_A.key] = [departure()]
     await setup(hass, line_subentry(), stop_subentry())
     assert get_state(hass, LIVE).state == STATE_ON
@@ -244,7 +245,7 @@ async def test_cache_removed_with_the_entry(hass: HomeAssistant, hub: FakeHub) -
 
 
 async def test_no_realtime_without_pins_or_persons(hass: HomeAssistant, hub: FakeHub) -> None:
-    hub.realtime = RealtimeData(NOW)
+    hub.realtime = RealtimeData(NOW, {"t1": TripUpdate("t1", None, False, ())})
     with patch.object(hub, "async_fetch_realtime") as fetch:
         await setup(hass, line_subentry())
     fetch.assert_not_called()
@@ -272,7 +273,7 @@ async def test_removed_person_loses_the_sensor(hass: HomeAssistant, hub: FakeHub
 async def test_action_fetches_realtime_when_nothing_polls(
     hass: HomeAssistant, hub: FakeHub
 ) -> None:
-    hub.realtime = RealtimeData(NOW)
+    hub.realtime = RealtimeData(NOW, {"t1": TripUpdate("t1", None, False, ())})
     entry = await setup(hass, line_subentry())
     with patch.object(hub, "async_fetch_realtime", return_value=hub.realtime) as fetch:
         await hass.services.async_call(
@@ -321,8 +322,14 @@ async def test_entity_snapshot(
         departure(delay=120, status=DepartureStatus.PREDICTED),
         departure(9, status=DepartureStatus.CANCELLED),
     ]
-    hub.realtime = RealtimeData(NOW)
+    hub.realtime = RealtimeData(NOW, {"t1": TripUpdate("t1", None, False, ())})
     await setup(hass, line_subentry(), stop_subentry())
     for entity_id in (NEXT, DELAY, LIVE):
         state = get_state(hass, entity_id)
         assert (state.state, dict(state.attributes)) == snapshot(name=entity_id)
+
+
+async def test_empty_realtime_message_is_not_live(hass: HomeAssistant, hub: FakeHub) -> None:
+    hub.realtime = RealtimeData(NOW)
+    await setup(hass, line_subentry(), stop_subentry())
+    assert get_state(hass, LIVE).state == STATE_OFF

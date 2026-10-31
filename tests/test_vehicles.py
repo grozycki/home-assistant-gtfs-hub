@@ -24,7 +24,7 @@ from conftest import (
     stop_subentry,
     vehicle,
 )
-from gtfs_hub import VehicleClass
+from gtfs_hub import VehicleClass, VehicleKey
 
 if TYPE_CHECKING:
     from collections.abc import Generator
@@ -91,8 +91,9 @@ async def test_new_trip_keeps_the_entity_and_absence_is_unavailable(
     assert get_state(hass, TRACKER).attributes["trip_id"] == "t2"
     trackers = [e for e in er.async_get(hass).entities if e.startswith("device_tracker.")]
     assert trackers == [TRACKER]
-    hub.vehicles = []
-    await tick(hass, freezer)
+    for _ in range(5):
+        hub.vehicles = []
+        await tick(hass, freezer)
     assert get_state(hass, TRACKER).state == STATE_UNAVAILABLE
 
 
@@ -206,8 +207,9 @@ async def test_vehicle_returns_at_the_same_place(
     hub.vehicles = [vehicle()]
     await setup(hass, hub)
     await tick(hass, freezer)
-    hub.vehicles = []
-    await tick(hass, freezer)
+    for _ in range(5):
+        hub.vehicles = []
+        await tick(hass, freezer)
     assert get_state(hass, TRACKER).state == STATE_UNAVAILABLE
     hub.vehicles = [vehicle()]
     await tick(hass, freezer)
@@ -229,3 +231,31 @@ async def test_pinned_stop_has_a_marker(
     response = await client.get(picture)
     assert response.status == 200
     assert response.content_type == "image/svg+xml"
+
+
+@pytest.mark.usefixtures("demo")
+async def test_empty_feed_keeps_vehicles_for_a_moment(
+    hass: HomeAssistant, hub: FakeHub, freezer: FrozenDateTimeFactory
+) -> None:
+    hub.vehicles = [vehicle()]
+    await setup(hass, hub)
+    await tick(hass, freezer)
+    hub.vehicles = []
+    await tick(hass, freezer)
+    assert get_state(hass, TRACKER).state == "not_home"
+    for _ in range(5):
+        await tick(hass, freezer)
+    assert get_state(hass, TRACKER).state == STATE_UNAVAILABLE
+
+
+@pytest.mark.usefixtures("demo")
+async def test_one_vehicle_leaving_goes_at_once(
+    hass: HomeAssistant, hub: FakeHub, freezer: FrozenDateTimeFactory
+) -> None:
+    other = replace(vehicle(), key=VehicleKey("v2"))
+    hub.vehicles = [vehicle(), other]
+    await setup(hass, hub)
+    await tick(hass, freezer)
+    hub.vehicles = [other]
+    await tick(hass, freezer)
+    assert get_state(hass, TRACKER).state == STATE_UNAVAILABLE

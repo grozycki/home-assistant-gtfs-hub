@@ -3,7 +3,7 @@
 import logging
 import os
 from dataclasses import dataclass, field
-from datetime import timedelta
+from datetime import datetime, timedelta
 from typing import TYPE_CHECKING, override
 
 from homeassistant.config_entries import ConfigEntry
@@ -46,6 +46,7 @@ if TYPE_CHECKING:
 _LOGGER = logging.getLogger(__name__)
 _MAX_AGE = timedelta(minutes=5)
 MIN_MOVEMENT = 20
+EMPTY_FEED_GRACE = timedelta(minutes=2)
 
 
 def vehicle_id(vehicle: Vehicle) -> str:
@@ -165,6 +166,7 @@ class DeparturesCoordinator(DataUpdateCoordinator[DeparturesData]):
             or os.environ.get(DEMO_VEHICLES_VARIABLE) == "1"
         )
         self._anchors: dict[str, tuple[float, float, float | None]] = {}
+        self._vehicles_seen: datetime | None = None
 
     def _pinned(self) -> list[StopKey]:
         return [
@@ -209,7 +211,14 @@ class DeparturesCoordinator(DataUpdateCoordinator[DeparturesData]):
             vehicles = await self.hub.async_fetch_vehicles()
         except GtfsError as err:
             _LOGGER.debug("Vehicle positions unavailable: %s", err)
+            vehicles = []
+        now = dt_util.utcnow()
+        # A whole feed goes empty for a moment, which says nothing about the vehicles.
+        if not vehicles:
+            if self._vehicles_seen is not None and now - self._vehicles_seen < EMPTY_FEED_GRACE:
+                return self.data.vehicles
             return {}
+        self._vehicles_seen = now
         return {
             vehicle_id(vehicle): TrackedVehicle(vehicle, self._direction(vehicle))
             for vehicle in vehicles
@@ -243,7 +252,11 @@ class DeparturesCoordinator(DataUpdateCoordinator[DeparturesData]):
             return DeparturesData(nearest=nearest, vehicles=vehicles)
         await self._async_fetch_realtime()
         realtime = self.realtime
-        live = realtime is not None and not realtime.is_stale(dt_util.utcnow(), _MAX_AGE)
+        live = (
+            realtime is not None
+            and bool(realtime.trips)
+            and not realtime.is_stale(dt_util.utcnow(), _MAX_AGE)
+        )
         departures = {}
         try:
             for key in wanted:
