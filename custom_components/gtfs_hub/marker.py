@@ -10,6 +10,7 @@ from homeassistant.helpers.http import HomeAssistantView
 if TYPE_CHECKING:
     from gtfs_hub import VehicleClass
 
+STOP_MARKER_URL: Final = "/api/gtfs_hub/stop_marker"
 _COLOURS: Final = {"bus": "#1565C0", "tram": "#C62828", "trolleybus": "#2E7D32"}
 _DEFAULT_COLOUR: Final = "#455A64"
 _FORMS: Final = ("short", "standard", "long", "double")
@@ -111,6 +112,37 @@ def marker_svg(route_type: int, form: str, line: str, bearing: int | None) -> st
         f'<text x="50" y="72" dy=".35em" text-anchor="middle" font-family="sans-serif" '
         f'font-weight="bold" font-size="{size}" fill="#FFFFFF">{escape(line)}</text></svg>'
     )
+
+
+def stop_svg() -> str:
+    """Draw a stop sign, which tells stops from vehicles at a glance."""
+    return (
+        '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">'
+        '<circle cx="50" cy="50" r="50" fill="#263238"/>'
+        '<rect x="47" y="44" width="6" height="42" rx="2" fill="#FFFFFF"/>'
+        '<rect x="24" y="12" width="52" height="42" rx="6" fill="#FFD600"/>'
+        '<rect x="32" y="20" width="36" height="20" rx="4" fill="#263238"/>'
+        '<rect x="36" y="24" width="28" height="7" rx="1.5" fill="#FFD600"/>'
+        '<circle cx="39" cy="43" r="4.5" fill="#263238"/>'
+        '<circle cx="61" cy="43" r="4.5" fill="#263238"/>'
+        "</svg>"
+    )
+
+
+class StopMarkerView(HomeAssistantView):
+    """Serve the stop marker, which holds nothing private and loads without a token."""
+
+    url = STOP_MARKER_URL
+    name = "api:gtfs_hub:stop_marker"
+    requires_auth = False
+
+    async def get(self, request: web.Request) -> web.Response:
+        """Return the marker."""
+        return web.Response(
+            text=stop_svg(),
+            content_type="image/svg+xml",
+            headers={"Cache-Control": "public, max-age=86400"},
+        )
 
 
 class MarkerView(HomeAssistantView):

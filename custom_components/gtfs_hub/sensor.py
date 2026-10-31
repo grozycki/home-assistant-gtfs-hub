@@ -10,6 +10,7 @@ from gtfs_hub import Departure, DepartureStatus, Stop, StopKey
 
 from .const import CONF_PERSONS, CONF_STOP_KEY, SUBENTRY_STOP
 from .entity import GtfsHubEntity, departure_as_dict, next_departure, service_device
+from .marker import STOP_MARKER_URL
 
 if TYPE_CHECKING:
     from collections.abc import Mapping
@@ -79,6 +80,12 @@ class NextDepartureSensor(StopSensor):
     _attr_device_class = SensorDeviceClass.TIMESTAMP
     _attr_translation_key = "next_departure"
     _unrecorded_attributes = frozenset({"departures"})
+
+    @property
+    @override
+    def entity_picture(self) -> str:
+        """Return the stop marker, as the map otherwise shows only initials."""
+        return STOP_MARKER_URL
 
     @property
     @override

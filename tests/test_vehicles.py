@@ -6,7 +6,7 @@ from unittest.mock import patch
 
 import pytest
 from custom_components.gtfs_hub.const import DEMO_VEHICLES_VARIABLE, DEPARTURES_INTERVAL
-from custom_components.gtfs_hub.marker import form_of, marker_svg, marker_url
+from custom_components.gtfs_hub.marker import STOP_MARKER_URL, form_of, marker_svg, marker_url
 from homeassistant.const import STATE_UNAVAILABLE
 from homeassistant.helpers import entity_registry as er
 from homeassistant.setup import async_setup_component
@@ -216,3 +216,16 @@ async def test_vehicle_returns_at_the_same_place(
 
 def test_marker_url_quotes_the_line() -> None:
     assert marker_url(3, "long", "T/6", None) == "/api/gtfs_hub/marker/3/long/none/T%2F6"
+
+
+async def test_pinned_stop_has_a_marker(
+    hass: HomeAssistant, hass_client_no_auth: ClientSessionGenerator, hub: FakeHub
+) -> None:
+    await async_setup_component(hass, "http", {})
+    await setup(hass, hub)
+    picture = get_state(hass, "sensor.alfa_next_departure").attributes["entity_picture"]
+    assert picture == STOP_MARKER_URL
+    client = await hass_client_no_auth()
+    response = await client.get(picture)
+    assert response.status == 200
+    assert response.content_type == "image/svg+xml"
