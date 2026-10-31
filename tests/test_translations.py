@@ -26,11 +26,10 @@ def test_languages_match() -> None:
 def test_used_keys_exist() -> None:
     english = load("en")
     code = "".join(path.read_text(encoding="utf-8") for path in ROOT.glob("*.py"))
-    for reason in ("catalogue_not_ready", "entry_not_loaded", "no_lines", "already_configured"):
+    for reason in ("download_failed", "no_lines"):
         assert reason in code
-    subentries = json.dumps(english["config_subentries"])
-    assert "catalogue_not_ready" in subentries
-    assert "no_lines" in subentries
+    assert "download_failed" in json.dumps(english["config"]["abort"])
+    assert "no_lines" in json.dumps(english["options"]["error"])
     for key in english["exceptions"]:
         assert key in code
     errors = english["config"]["error"]

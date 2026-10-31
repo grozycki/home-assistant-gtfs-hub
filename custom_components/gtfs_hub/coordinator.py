@@ -209,6 +209,7 @@ class GtfsHubRuntime:
     hub: GtfsHub
     schedule: ScheduleCoordinator
     departures: DeparturesCoordinator
+    applying: bool = False
 
 
 type GtfsHubConfigEntry = ConfigEntry[GtfsHubRuntime]

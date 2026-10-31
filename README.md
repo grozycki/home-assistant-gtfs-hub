@@ -17,8 +17,11 @@ Delay reads unknown, not 0, when no prediction exists. Lists are left out of the
 ## Setup
 
 1. Add the integration and choose a source.
-2. Wait a moment for the schedule to download, then add lines from the entry's menu.
-3. Optionally add stops, and choose persons in the entry's options.
+2. Choose your lines. Each mode has its own multi-select.
+3. Choose stops of those lines. Each shows its direction, lines and code.
+4. Optionally choose persons for the nearest stop sensor.
+
+The entry's options repeat these steps, so you can change the selection at any time.
 
 ## Status
 

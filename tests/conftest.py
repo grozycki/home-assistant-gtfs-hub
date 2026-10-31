@@ -21,6 +21,7 @@ from gtfs_hub import (
     Snapshot,
     StaticFeedRef,
     Stop,
+    StopChoice,
     StopKey,
     TripId,
 )
@@ -95,6 +96,21 @@ class FakeHub:
         if not self.ready:
             raise GtfsNoDataError("empty")
         return []
+
+    async def async_list_lines(self) -> list[Line]:
+        if not self.ready:
+            raise GtfsNoDataError("empty")
+        return [
+            Line(LINE_11, "Long", "A", None, None),
+            Line(TRAM_11, None, "A", None, None),
+            Line(LineKey(1400, "F"), "Funicular", "A", None, None),
+        ]
+
+    async def async_stop_choices(self, lines: Collection[LineKey]) -> list[StopChoice]:
+        return [
+            StopChoice(STOP_A, ("11",), ("North",)),
+            StopChoice(STOP_B, ("11",), ()),
+        ]
 
     async def async_search_lines(self, query: str, limit: int = 20) -> list[Line]:
         if not self.ready:

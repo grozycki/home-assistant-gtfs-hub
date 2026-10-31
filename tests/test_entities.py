@@ -1,8 +1,8 @@
-from pathlib import Path
 from typing import TYPE_CHECKING
 from unittest.mock import patch
 
 import pytest
+from custom_components.gtfs_hub import database_path
 from custom_components.gtfs_hub.const import (
     DEPARTURES_INTERVAL,
     DOMAIN,
@@ -235,7 +235,7 @@ async def test_action_without_schedule(hass: HomeAssistant, hub: FakeHub) -> Non
 
 async def test_cache_removed_with_the_entry(hass: HomeAssistant, hub: FakeHub) -> None:
     entry = await setup(hass, line_subentry())
-    path = Path(hass.config.cache_path(DOMAIN, f"{entry.entry_id}.db"))
+    path = database_path(hass, "fake")
     await hass.async_add_executor_job(path.parent.mkdir, 0o755, True, True)
     await hass.async_add_executor_job(path.write_bytes, b"x")
     assert await hass.config_entries.async_remove(entry.entry_id)

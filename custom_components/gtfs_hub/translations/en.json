@@ -14,15 +14,45 @@
           "schedule_url": "Schedule URL",
           "trip_updates_url": "Trip updates URL (optional)"
         }
+      },
+      "lines": {
+        "title": "Choose your lines",
+        "description": "Choose every line you want to follow.",
+        "data": {
+          "bus": "Buses",
+          "tram": "Trams",
+          "trolleybus": "Trolleybuses",
+          "other": "Other"
+        }
+      },
+      "stops": {
+        "title": "Choose your stops",
+        "description": "These stops get next departure and delay sensors. You can leave this empty.",
+        "data": {
+          "stops": "Stops"
+        }
+      },
+      "persons": {
+        "title": "Nearest stop",
+        "description": "Each chosen person gets a sensor showing the closest stop of your lines.",
+        "data": {
+          "persons": "Persons"
+        }
       }
     },
     "error": {
       "cannot_connect": "Could not reach the source.",
       "invalid_feed": "The source returned unusable data.",
-      "unknown": "Unexpected error."
+      "unknown": "Unexpected error.",
+      "no_lines": "Choose at least one line."
     },
     "abort": {
-      "already_configured": "This source is already configured."
+      "already_configured": "This source is already configured.",
+      "download_failed": "The schedule could not be downloaded. Try again later."
+    },
+    "progress": {
+      "catalogue": "Downloading the list of lines. This can take a minute.",
+      "timetables": "Downloading timetables of the chosen lines. This can take a minute."
     }
   },
   "selector": {
@@ -41,25 +71,8 @@
       },
       "step": {
         "user": {
-          "title": "Find a line",
-          "data": {
-            "query": "Number or name"
-          }
-        },
-        "pick": {
-          "title": "Choose a line",
-          "data": {
-            "line": "Line"
-          }
+          "title": "Add line"
         }
-      },
-      "error": {
-        "no_matches": "Nothing found."
-      },
-      "abort": {
-        "already_configured": "This line is already added.",
-        "entry_not_loaded": "The source is not loaded.",
-        "catalogue_not_ready": "The schedule is still downloading. Try again in a minute."
       }
     },
     "stop": {
@@ -69,37 +82,47 @@
       },
       "step": {
         "user": {
-          "title": "Find a stop of your lines",
-          "data": {
-            "query": "Name or code"
-          }
-        },
-        "pick": {
-          "title": "Choose a stop",
-          "data": {
-            "stop": "Stop"
-          }
+          "title": "Add stop"
         }
-      },
-      "error": {
-        "no_matches": "No matching stop on your lines."
-      },
-      "abort": {
-        "already_configured": "This stop is already added.",
-        "entry_not_loaded": "The source is not loaded.",
-        "no_lines": "Add a line first, and wait for its schedule to download."
       }
     }
   },
   "options": {
     "step": {
-      "init": {
+      "lines": {
+        "title": "Choose your lines",
+        "description": "Choose every line you want to follow.",
+        "data": {
+          "bus": "Buses",
+          "tram": "Trams",
+          "trolleybus": "Trolleybuses",
+          "other": "Other"
+        }
+      },
+      "stops": {
+        "title": "Choose your stops",
+        "description": "These stops get next departure and delay sensors. You can leave this empty.",
+        "data": {
+          "stops": "Stops"
+        }
+      },
+      "persons": {
         "title": "Nearest stop",
         "description": "Each chosen person gets a sensor showing the closest stop of your lines.",
         "data": {
           "persons": "Persons"
         }
       }
+    },
+    "progress": {
+      "catalogue": "Downloading the list of lines. This can take a minute.",
+      "timetables": "Downloading timetables of the chosen lines. This can take a minute."
+    },
+    "error": {
+      "no_lines": "Choose at least one line."
+    },
+    "abort": {
+      "download_failed": "The schedule could not be downloaded. Try again later."
     }
   },
   "entity": {

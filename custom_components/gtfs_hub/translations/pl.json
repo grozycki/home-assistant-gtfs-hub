@@ -14,15 +14,45 @@
           "schedule_url": "Adres rozkładu",
           "trip_updates_url": "Adres aktualizacji kursów (opcjonalnie)"
         }
+      },
+      "lines": {
+        "title": "Wybierz linie",
+        "description": "Wybierz wszystkie linie, które chcesz śledzić.",
+        "data": {
+          "bus": "Autobusy",
+          "tram": "Tramwaje",
+          "trolleybus": "Trolejbusy",
+          "other": "Inne"
+        }
+      },
+      "stops": {
+        "title": "Wybierz przystanki",
+        "description": "Te przystanki dostaną sensory następnego odjazdu i opóźnienia. Możesz zostawić to pole puste.",
+        "data": {
+          "stops": "Przystanki"
+        }
+      },
+      "persons": {
+        "title": "Najbliższy przystanek",
+        "description": "Każda wybrana osoba dostanie sensor z najbliższym przystankiem Twoich linii.",
+        "data": {
+          "persons": "Osoby"
+        }
       }
     },
     "error": {
       "cannot_connect": "Nie można połączyć się ze źródłem.",
       "invalid_feed": "Źródło zwróciło nieprzydatne dane.",
-      "unknown": "Nieoczekiwany błąd."
+      "unknown": "Nieoczekiwany błąd.",
+      "no_lines": "Wybierz co najmniej jedną linię."
     },
     "abort": {
-      "already_configured": "To źródło jest już skonfigurowane."
+      "already_configured": "To źródło jest już skonfigurowane.",
+      "download_failed": "Nie udało się pobrać rozkładu. Spróbuj później."
+    },
+    "progress": {
+      "catalogue": "Pobieranie listy linii. To może potrwać minutę.",
+      "timetables": "Pobieranie rozkładów wybranych linii. To może potrwać minutę."
     }
   },
   "selector": {
@@ -41,25 +71,8 @@
       },
       "step": {
         "user": {
-          "title": "Znajdź linię",
-          "data": {
-            "query": "Numer lub nazwa"
-          }
-        },
-        "pick": {
-          "title": "Wybierz linię",
-          "data": {
-            "line": "Linia"
-          }
+          "title": "Dodaj linię"
         }
-      },
-      "error": {
-        "no_matches": "Nic nie znaleziono."
-      },
-      "abort": {
-        "already_configured": "Ta linia jest już dodana.",
-        "entry_not_loaded": "Źródło nie jest załadowane.",
-        "catalogue_not_ready": "Rozkład wciąż się pobiera. Spróbuj za minutę."
       }
     },
     "stop": {
@@ -69,37 +82,47 @@
       },
       "step": {
         "user": {
-          "title": "Znajdź przystanek na swoich liniach",
-          "data": {
-            "query": "Nazwa lub kod"
-          }
-        },
-        "pick": {
-          "title": "Wybierz przystanek",
-          "data": {
-            "stop": "Przystanek"
-          }
+          "title": "Dodaj przystanek"
         }
-      },
-      "error": {
-        "no_matches": "Brak takiego przystanku na Twoich liniach."
-      },
-      "abort": {
-        "already_configured": "Ten przystanek jest już dodany.",
-        "entry_not_loaded": "Źródło nie jest załadowane.",
-        "no_lines": "Najpierw dodaj linię i poczekaj na pobranie rozkładu."
       }
     }
   },
   "options": {
     "step": {
-      "init": {
+      "lines": {
+        "title": "Wybierz linie",
+        "description": "Wybierz wszystkie linie, które chcesz śledzić.",
+        "data": {
+          "bus": "Autobusy",
+          "tram": "Tramwaje",
+          "trolleybus": "Trolejbusy",
+          "other": "Inne"
+        }
+      },
+      "stops": {
+        "title": "Wybierz przystanki",
+        "description": "Te przystanki dostaną sensory następnego odjazdu i opóźnienia. Możesz zostawić to pole puste.",
+        "data": {
+          "stops": "Przystanki"
+        }
+      },
+      "persons": {
         "title": "Najbliższy przystanek",
         "description": "Każda wybrana osoba dostanie sensor z najbliższym przystankiem Twoich linii.",
         "data": {
           "persons": "Osoby"
         }
       }
+    },
+    "progress": {
+      "catalogue": "Pobieranie listy linii. To może potrwać minutę.",
+      "timetables": "Pobieranie rozkładów wybranych linii. To może potrwać minutę."
+    },
+    "error": {
+      "no_lines": "Wybierz co najmniej jedną linię."
+    },
+    "abort": {
+      "download_failed": "Nie udało się pobrać rozkładu. Spróbuj później."
     }
   },
   "entity": {

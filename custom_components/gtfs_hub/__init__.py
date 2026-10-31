@@ -1,5 +1,6 @@
 """The GTFS Hub integration."""
 
+import hashlib
 from pathlib import Path
 from typing import TYPE_CHECKING
 
@@ -55,8 +56,10 @@ async def async_build_provider(data: Mapping[str, str]) -> Provider:
     return await async_create_provider(data[CONF_PROVIDER])
 
 
-def _database_path(hass: HomeAssistant, entry: GtfsHubConfigEntry) -> Path:
-    return Path(hass.config.cache_path(DOMAIN, f"{entry.entry_id}.db"))
+def database_path(hass: HomeAssistant, unique_id: str) -> Path:
+    """Return the database of a source, known before its entry exists."""
+    name = hashlib.sha256(unique_id.encode()).hexdigest()[:16]
+    return Path(hass.config.cache_path(DOMAIN, f"{name}.db"))
 
 
 async def async_setup_entry(hass: HomeAssistant, entry: GtfsHubConfigEntry) -> bool:
@@ -65,7 +68,8 @@ async def async_setup_entry(hass: HomeAssistant, entry: GtfsHubConfigEntry) -> b
         provider = await async_build_provider(entry.data)
     except GtfsError as err:
         raise ConfigEntryError(f"Provider unavailable: {err}") from err
-    hub = GtfsHub(provider, _database_path(hass, entry), async_get_clientsession(hass))
+    assert entry.unique_id is not None
+    hub = GtfsHub(provider, database_path(hass, entry.unique_id), async_get_clientsession(hass))
     schedule = ScheduleCoordinator(hass, entry, hub)
     departures = DeparturesCoordinator(hass, entry, hub, schedule)
     entry.runtime_data = GtfsHubRuntime(provider, hub, schedule, departures)
@@ -85,7 +89,8 @@ async def async_setup_entry(hass: HomeAssistant, entry: GtfsHubConfigEntry) -> b
 
 
 async def _async_reload(hass: HomeAssistant, entry: GtfsHubConfigEntry) -> None:
-    await hass.config_entries.async_reload(entry.entry_id)
+    if not entry.runtime_data.applying:
+        await hass.config_entries.async_reload(entry.entry_id)
 
 
 async def async_unload_entry(hass: HomeAssistant, entry: GtfsHubConfigEntry) -> bool:
@@ -95,5 +100,6 @@ async def async_unload_entry(hass: HomeAssistant, entry: GtfsHubConfigEntry) -> 
 
 async def async_remove_entry(hass: HomeAssistant, entry: GtfsHubConfigEntry) -> None:
     """Delete the timetable cache of a removed entry."""
-    path = _database_path(hass, entry)
+    assert entry.unique_id is not None
+    path = database_path(hass, entry.unique_id)
     await hass.async_add_executor_job(lambda: path.unlink(missing_ok=True))
