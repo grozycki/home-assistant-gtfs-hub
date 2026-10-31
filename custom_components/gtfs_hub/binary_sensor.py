@@ -1,13 +1,18 @@
 """Tell whether live data is available."""
 
-from homeassistant.components.binary_sensor import BinarySensorDeviceClass, BinarySensorEntity
-from homeassistant.const import EntityCategory
-from homeassistant.core import HomeAssistant
-from homeassistant.helpers.entity_platform import AddConfigEntryEntitiesCallback
+from typing import TYPE_CHECKING, override
 
-from . import GtfsHubConfigEntry
-from .coordinator import DeparturesCoordinator
+from homeassistant.components.binary_sensor import BinarySensorEntity
+from homeassistant.components.binary_sensor.const import BinarySensorDeviceClass
+from homeassistant.const import EntityCategory
+
 from .entity import GtfsHubEntity, service_device
+
+if TYPE_CHECKING:
+    from homeassistant.core import HomeAssistant
+    from homeassistant.helpers.entity_platform import AddConfigEntryEntitiesCallback
+
+    from .coordinator import DeparturesCoordinator, GtfsHubConfigEntry
 
 
 async def async_setup_entry(
@@ -38,6 +43,7 @@ class LiveDataSensor(GtfsHubEntity, BinarySensorEntity):
         self._attr_unique_id = f"{entry.entry_id}_live_data"
 
     @property
+    @override
     def is_on(self) -> bool:
         """Return whether departures use fresh realtime data."""
         return self.coordinator.data.live

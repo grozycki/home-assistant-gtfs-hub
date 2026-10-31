@@ -1,4 +1,5 @@
 from pathlib import Path
+from typing import TYPE_CHECKING
 from unittest.mock import patch
 
 import pytest
@@ -8,16 +9,30 @@ from custom_components.gtfs_hub.const import (
     SCHEDULE_INTERVAL,
     SCHEDULE_RETRY_INTERVAL,
 )
-from freezegun.api import FrozenDateTimeFactory
-from homeassistant.config_entries import ConfigEntryState
+from homeassistant.config_entries import ConfigEntryState, ConfigSubentryData
 from homeassistant.const import STATE_OFF, STATE_ON, STATE_UNAVAILABLE, STATE_UNKNOWN
-from homeassistant.core import HomeAssistant
 from homeassistant.exceptions import ServiceValidationError
 from homeassistant.helpers import entity_registry as er
-from pytest_homeassistant_custom_component.common import async_fire_time_changed
+from pytest_homeassistant_custom_component.common import (
+    MockConfigEntry,
+    async_fire_time_changed,
+)
 
-from conftest import NOW, FakeHub, departure, line_subentry, make_entry, stop_subentry
+from conftest import (
+    NOW,
+    STOP_A,
+    FakeHub,
+    departure,
+    get_state,
+    line_subentry,
+    make_entry,
+    stop_subentry,
+)
 from gtfs_hub import DepartureStatus, GtfsConnectionError, GtfsNoDataError, RealtimeData
+
+if TYPE_CHECKING:
+    from freezegun.api import FrozenDateTimeFactory
+    from homeassistant.core import HomeAssistant
 
 NEXT = "sensor.alfa_next_departure"
 DELAY = "sensor.alfa_delay"
@@ -29,7 +44,11 @@ def frozen(freezer: FrozenDateTimeFactory) -> None:
     freezer.move_to(NOW)
 
 
-async def setup(hass: HomeAssistant, *subentries, options=None):
+async def setup(
+    hass: HomeAssistant,
+    *subentries: ConfigSubentryData,
+    options: dict[str, list[str]] | None = None,
+) -> MockConfigEntry:
     entry = make_entry(*subentries, options=options)
     entry.add_to_hass(hass)
     await hass.config_entries.async_setup(entry.entry_id)
@@ -44,39 +63,39 @@ async def tick(hass: HomeAssistant, freezer: FrozenDateTimeFactory) -> None:
 
 
 async def test_prediction(hass: HomeAssistant, hub: FakeHub) -> None:
-    hub.departures["A"] = [departure(delay=120, status=DepartureStatus.PREDICTED)]
+    hub.departures[STOP_A.key] = [departure(delay=120, status=DepartureStatus.PREDICTED)]
     await setup(hass, line_subentry(), stop_subentry())
-    state = hass.states.get(NEXT)
+    state = get_state(hass, NEXT)
     assert state.state == "2026-11-02T12:07:00+00:00"
     assert state.attributes["line"] == "11"
     assert state.attributes["realtime"] is True
     assert state.attributes["timetable_url"] == "https://example.test/a"
     assert state.attributes["attribution"] == "Data: Fake"
     assert state.attributes["departures"][0]["status"] == "predicted"
-    assert float(hass.states.get(DELAY).state) == 120
+    assert float(get_state(hass, DELAY).state) == 120
 
 
 async def test_no_prediction_is_unknown_delay(hass: HomeAssistant, hub: FakeHub) -> None:
-    hub.departures["A"] = [departure()]
+    hub.departures[STOP_A.key] = [departure()]
     await setup(hass, line_subentry(), stop_subentry())
-    assert hass.states.get(NEXT).state == "2026-11-02T12:05:00+00:00"
-    assert hass.states.get(NEXT).attributes["realtime"] is False
-    assert hass.states.get(DELAY).state == STATE_UNKNOWN
+    assert get_state(hass, NEXT).state == "2026-11-02T12:05:00+00:00"
+    assert get_state(hass, NEXT).attributes["realtime"] is False
+    assert get_state(hass, DELAY).state == STATE_UNKNOWN
 
 
 async def test_no_departures_stays_available(hass: HomeAssistant, hub: FakeHub) -> None:
     await setup(hass, line_subentry(), stop_subentry())
-    assert hass.states.get(NEXT).state == STATE_UNKNOWN
+    assert get_state(hass, NEXT).state == STATE_UNKNOWN
 
 
 async def test_cancelled_is_listed_but_not_next(hass: HomeAssistant, hub: FakeHub) -> None:
-    hub.departures["A"] = [
+    hub.departures[STOP_A.key] = [
         departure(1, status=DepartureStatus.CANCELLED),
         departure(2, status=DepartureStatus.SKIPPED),
         departure(3),
     ]
     await setup(hass, line_subentry(), stop_subentry())
-    state = hass.states.get(NEXT)
+    state = get_state(hass, NEXT)
     assert state.state == "2026-11-02T12:03:00+00:00"
     assert len(state.attributes["departures"]) == 3
 
@@ -93,16 +112,16 @@ async def test_realtime_failure_keeps_the_schedule(
     hass: HomeAssistant, hub: FakeHub, freezer: FrozenDateTimeFactory
 ) -> None:
     hub.realtime = RealtimeData(NOW)
-    hub.departures["A"] = [departure()]
+    hub.departures[STOP_A.key] = [departure()]
     await setup(hass, line_subentry(), stop_subentry())
-    assert hass.states.get(LIVE).state == STATE_ON
+    assert get_state(hass, LIVE).state == STATE_ON
     hub.realtime_error = GtfsConnectionError("down")
     await tick(hass, freezer)
-    assert hass.states.get(LIVE).state == STATE_OFF
-    assert hass.states.get(NEXT).state != STATE_UNAVAILABLE
+    assert get_state(hass, LIVE).state == STATE_OFF
+    assert get_state(hass, NEXT).state != STATE_UNAVAILABLE
     hub.realtime_error = None
     await tick(hass, freezer)
-    assert hass.states.get(LIVE).state == STATE_ON
+    assert get_state(hass, LIVE).state == STATE_ON
 
 
 async def test_stale_feed_turns_live_data_off(hass: HomeAssistant, hub: FakeHub) -> None:
@@ -110,7 +129,7 @@ async def test_stale_feed_turns_live_data_off(hass: HomeAssistant, hub: FakeHub)
 
     hub.realtime = RealtimeData(NOW - timedelta(minutes=6))
     await setup(hass, line_subentry(), stop_subentry())
-    assert hass.states.get(LIVE).state == STATE_OFF
+    assert get_state(hass, LIVE).state == STATE_OFF
 
 
 async def test_no_schedule_yet_means_unavailable(hass: HomeAssistant, hub: FakeHub) -> None:
@@ -118,14 +137,14 @@ async def test_no_schedule_yet_means_unavailable(hass: HomeAssistant, hub: FakeH
     hub.sync_error = GtfsConnectionError("down")
     entry = await setup(hass, line_subentry(), stop_subentry())
     assert entry.state is ConfigEntryState.LOADED
-    assert hass.states.get(NEXT).state == STATE_UNAVAILABLE
+    assert get_state(hass, NEXT).state == STATE_UNAVAILABLE
 
 
 async def test_sync_failure_keeps_stored_data(hass: HomeAssistant, hub: FakeHub) -> None:
     hub.sync_error = GtfsConnectionError("down")
-    hub.departures["A"] = [departure()]
+    hub.departures[STOP_A.key] = [departure()]
     await setup(hass, line_subentry(), stop_subentry())
-    assert hass.states.get(NEXT).state == "2026-11-02T12:05:00+00:00"
+    assert get_state(hass, NEXT).state == "2026-11-02T12:05:00+00:00"
 
 
 async def test_selection_reaches_the_library(hass: HomeAssistant, hub: FakeHub) -> None:
@@ -148,9 +167,9 @@ def person(hass: HomeAssistant, latitude: float | None, longitude: float | None)
 
 async def test_nearest_stop(hass: HomeAssistant, hub: FakeHub) -> None:
     person(hass, 50.0009, 19.0)
-    hub.departures["A"] = [departure()]
+    hub.departures[STOP_A.key] = [departure()]
     await setup(hass, line_subentry(), options={"persons": ["person.ania"]})
-    state = hass.states.get("sensor.fake_nearest_stop_ania")
+    state = get_state(hass, "sensor.fake_nearest_stop_ania")
     assert state.state == "Alfa"
     assert state.attributes["stop_code"] == "C-A"
     assert state.attributes["distance"] == 100
@@ -163,16 +182,16 @@ async def test_nearest_stop_far_or_unknown(
 ) -> None:
     person(hass, 52.0, 21.0)
     await setup(hass, line_subentry(), options={"persons": ["person.ania"]})
-    assert hass.states.get("sensor.fake_nearest_stop_ania").state == STATE_UNKNOWN
+    assert get_state(hass, "sensor.fake_nearest_stop_ania").state == STATE_UNKNOWN
     person(hass, None, None)
     await tick(hass, freezer)
-    state = hass.states.get("sensor.fake_nearest_stop_ania")
+    state = get_state(hass, "sensor.fake_nearest_stop_ania")
     assert state.state == STATE_UNKNOWN
     assert state.attributes["departures"] == []
 
 
 async def test_action_known_and_unknown_stop(hass: HomeAssistant, hub: FakeHub) -> None:
-    hub.departures["A"] = [departure()]
+    hub.departures[STOP_A.key] = [departure()]
     entry = await setup(hass, line_subentry())
     response = await hass.services.async_call(
         DOMAIN,
@@ -181,7 +200,11 @@ async def test_action_known_and_unknown_stop(hass: HomeAssistant, hub: FakeHub) 
         blocking=True,
         return_response=True,
     )
-    assert response["departures"][0]["line"] == "11"
+    assert response is not None
+    departures = response["departures"]
+    assert isinstance(departures, list)
+    assert isinstance(departures[0], dict)
+    assert departures[0]["line"] == "11"
     with pytest.raises(ServiceValidationError):
         await hass.services.async_call(
             DOMAIN,
@@ -224,7 +247,7 @@ async def test_no_realtime_without_pins_or_persons(hass: HomeAssistant, hub: Fak
     with patch.object(hub, "async_fetch_realtime") as fetch:
         await setup(hass, line_subentry())
     fetch.assert_not_called()
-    assert hass.states.get(LIVE).state == STATE_OFF
+    assert get_state(hass, LIVE).state == STATE_OFF
 
 
 async def test_failed_sync_retries_soon(hass: HomeAssistant, hub: FakeHub) -> None:

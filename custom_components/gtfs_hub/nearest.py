@@ -1,9 +1,12 @@
 """Find the stop a person is near. Free of Home Assistant so it can be tested alone."""
 
 import math
-from collections.abc import Iterable
+from typing import TYPE_CHECKING
 
-from gtfs_hub import Stop
+if TYPE_CHECKING:
+    from collections.abc import Iterable
+
+    from gtfs_hub import Stop
 
 MAX_DISTANCE: float = 2_000
 SWITCH_MARGIN: float = 50

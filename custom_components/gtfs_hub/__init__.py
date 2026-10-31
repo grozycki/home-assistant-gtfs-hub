@@ -1,14 +1,12 @@
 """The GTFS Hub integration."""
 
-from dataclasses import dataclass
 from pathlib import Path
+from typing import TYPE_CHECKING
 
-from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant, callback
 from homeassistant.exceptions import ConfigEntryError
 from homeassistant.helpers import config_validation as cv
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
-from homeassistant.helpers.typing import ConfigType
 
 from gtfs_hub import (
     GenericProvider,
@@ -26,23 +24,20 @@ from .const import (
     GENERIC_PROVIDER,
     PLATFORMS,
 )
-from .coordinator import DeparturesCoordinator, ScheduleCoordinator
+from .coordinator import (
+    DeparturesCoordinator,
+    GtfsHubConfigEntry,
+    GtfsHubRuntime,
+    ScheduleCoordinator,
+)
 from .services import async_setup_services
 
+if TYPE_CHECKING:
+    from collections.abc import Mapping
+
+    from homeassistant.helpers.typing import ConfigType
+
 CONFIG_SCHEMA = cv.config_entry_only_config_schema(DOMAIN)
-
-
-@dataclass(slots=True)
-class GtfsHubRuntime:
-    """What one entry keeps while it is loaded."""
-
-    provider: Provider
-    hub: GtfsHub
-    schedule: ScheduleCoordinator
-    departures: DeparturesCoordinator
-
-
-type GtfsHubConfigEntry = ConfigEntry[GtfsHubRuntime]
 
 
 async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
@@ -51,7 +46,7 @@ async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
     return True
 
 
-async def async_build_provider(data: dict[str, str]) -> Provider:
+async def async_build_provider(data: Mapping[str, str]) -> Provider:
     """Create the provider an entry names."""
     if data[CONF_PROVIDER] == GENERIC_PROVIDER:
         return GenericProvider(
@@ -60,14 +55,14 @@ async def async_build_provider(data: dict[str, str]) -> Provider:
     return await async_create_provider(data[CONF_PROVIDER])
 
 
-def _database_path(hass: HomeAssistant, entry: ConfigEntry) -> Path:
+def _database_path(hass: HomeAssistant, entry: GtfsHubConfigEntry) -> Path:
     return Path(hass.config.cache_path(DOMAIN, f"{entry.entry_id}.db"))
 
 
 async def async_setup_entry(hass: HomeAssistant, entry: GtfsHubConfigEntry) -> bool:
     """Set up an entry, leaving the first import to run in the background."""
     try:
-        provider = await async_build_provider(dict(entry.data))
+        provider = await async_build_provider(entry.data)
     except GtfsError as err:
         raise ConfigEntryError(f"Provider unavailable: {err}") from err
     hub = GtfsHub(provider, _database_path(hass, entry), async_get_clientsession(hass))
@@ -77,7 +72,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: GtfsHubConfigEntry) -> b
 
     @callback
     def _schedule_changed() -> None:
-        entry.async_create_background_task(
+        _ = entry.async_create_background_task(
             hass, departures.async_request_refresh(), f"{DOMAIN}_departures_refresh"
         )
 
@@ -85,7 +80,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: GtfsHubConfigEntry) -> b
     entry.async_on_unload(schedule.async_add_listener(_schedule_changed))
     await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
     entry.async_on_unload(entry.add_update_listener(_async_reload))
-    entry.async_create_background_task(hass, schedule.async_refresh(), f"{DOMAIN}_first_sync")
+    _ = entry.async_create_background_task(hass, schedule.async_refresh(), f"{DOMAIN}_first_sync")
     return True
 
 
@@ -98,7 +93,7 @@ async def async_unload_entry(hass: HomeAssistant, entry: GtfsHubConfigEntry) -> 
     return await hass.config_entries.async_unload_platforms(entry, PLATFORMS)
 
 
-async def async_remove_entry(hass: HomeAssistant, entry: ConfigEntry) -> None:
+async def async_remove_entry(hass: HomeAssistant, entry: GtfsHubConfigEntry) -> None:
     """Delete the timetable cache of a removed entry."""
     path = _database_path(hass, entry)
     await hass.async_add_executor_job(lambda: path.unlink(missing_ok=True))

@@ -1,5 +1,7 @@
 """Actions of the integration."""
 
+from typing import TYPE_CHECKING
+
 import probatio as vol
 from homeassistant.core import (
     HomeAssistant,
@@ -12,10 +14,13 @@ from homeassistant.exceptions import HomeAssistantError, ServiceValidationError
 from homeassistant.helpers import config_validation as cv
 from homeassistant.helpers import service
 
-from gtfs_hub import GtfsError
+from gtfs_hub import GtfsError, StopKey
 
 from .const import CONF_ENTRY_ID, CONF_LIMIT, CONF_STOP_KEY, DOMAIN
 from .entity import departure_as_dict
+
+if TYPE_CHECKING:
+    from .coordinator import GtfsHubConfigEntry
 
 _SCHEMA = vol.Schema(
     {
@@ -31,11 +36,12 @@ def async_setup_services(hass: HomeAssistant) -> None:
     """Register the actions."""
 
     async def async_get_departures(call: ServiceCall) -> ServiceResponse:
-        entry = service.async_get_config_entry(hass, DOMAIN, call.data[CONF_ENTRY_ID])
+        entry: GtfsHubConfigEntry = service.async_get_config_entry(
+            hass, DOMAIN, call.data[CONF_ENTRY_ID]
+        )
         runtime = entry.runtime_data
-        key = call.data[CONF_STOP_KEY]
-        schedule = runtime.schedule.data
-        if schedule is None or key not in schedule.stops:
+        key = StopKey(call.data[CONF_STOP_KEY])
+        if key not in runtime.schedule.data.stops:
             raise ServiceValidationError(
                 translation_domain=DOMAIN,
                 translation_key="unknown_stop",

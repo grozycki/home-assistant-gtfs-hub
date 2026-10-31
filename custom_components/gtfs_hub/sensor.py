@@ -1,21 +1,25 @@
 """Departure sensors."""
 
-from datetime import datetime
-from typing import Any
+from typing import TYPE_CHECKING, override
 
 from homeassistant.components.sensor import SensorDeviceClass, SensorEntity
-from homeassistant.config_entries import ConfigSubentry
 from homeassistant.const import UnitOfLength, UnitOfTime
-from homeassistant.core import HomeAssistant
 from homeassistant.helpers import entity_registry as er
-from homeassistant.helpers.entity_platform import AddConfigEntryEntitiesCallback
 
-from gtfs_hub import Departure, DepartureStatus, Stop
+from gtfs_hub import Departure, DepartureStatus, Stop, StopKey
 
-from . import GtfsHubConfigEntry
 from .const import CONF_PERSONS, CONF_STOP_KEY, SUBENTRY_STOP
-from .coordinator import DeparturesCoordinator
 from .entity import GtfsHubEntity, departure_as_dict, next_departure, service_device
+
+if TYPE_CHECKING:
+    from collections.abc import Mapping
+    from datetime import datetime
+
+    from homeassistant.config_entries import ConfigSubentry
+    from homeassistant.core import HomeAssistant
+    from homeassistant.helpers.entity_platform import AddConfigEntryEntitiesCallback
+
+    from .coordinator import DeparturesCoordinator, GtfsHubConfigEntry
 
 
 async def async_setup_entry(
@@ -56,7 +60,7 @@ class StopSensor(GtfsHubEntity, SensorEntity):
         subentry: ConfigSubentry,
     ) -> None:
         super().__init__(coordinator, attribution)
-        self._stop_key: str = subentry.data[CONF_STOP_KEY]
+        self._stop_key = StopKey(subentry.data[CONF_STOP_KEY])
         self._attr_device_info = service_device(subentry.subentry_id, subentry.title)
         self._attr_unique_id = f"{subentry.subentry_id}_{self._attr_translation_key}"
 
@@ -77,17 +81,18 @@ class NextDepartureSensor(StopSensor):
     _unrecorded_attributes = frozenset({"departures"})
 
     @property
+    @override
     def native_value(self) -> datetime | None:
         """Return the predicted time, or the scheduled one."""
         departure = self._next
         return departure.expected if departure else None
 
     @property
-    def extra_state_attributes(self) -> dict[str, Any]:
+    @override
+    def extra_state_attributes(self) -> Mapping[str, object]:
         """Return the upcoming list and the link to everything else."""
         departure = self._next
-        schedule = self.coordinator.schedule.data
-        stop = schedule.stops.get(self._stop_key) if schedule else None
+        stop = self.coordinator.schedule.data.stops.get(self._stop_key)
         return {
             "line": departure.line.short_name if departure else None,
             "headsign": departure.headsign if departure else None,
@@ -105,6 +110,7 @@ class DelaySensor(StopSensor):
     _attr_translation_key = "delay"
 
     @property
+    @override
     def native_value(self) -> int | None:
         """Return the delay in seconds."""
         departure = self._next
@@ -136,13 +142,15 @@ class NearestStopSensor(GtfsHubEntity, SensorEntity):
         return item.stop if item else None
 
     @property
+    @override
     def native_value(self) -> str | None:
         """Return the name of the stop."""
         stop = self._stop
         return stop.name if stop else None
 
     @property
-    def extra_state_attributes(self) -> dict[str, Any]:
+    @override
+    def extra_state_attributes(self) -> Mapping[str, object]:
         """Return where the stop is and what leaves it."""
         item = self.coordinator.data.nearest.get(self._person)
         if item is None:

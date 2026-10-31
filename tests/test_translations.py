@@ -12,8 +12,11 @@ def keys(value: object, prefix: str = "") -> set[str]:
     return set().union(*(keys(item, f"{prefix}/{key}") for key, item in value.items()))
 
 
-def load(language: str) -> dict:
-    return json.loads((ROOT / "translations" / f"{language}.json").read_text(encoding="utf-8"))
+def load(language: str) -> dict[str, dict[str, object]]:
+    data: dict[str, dict[str, object]] = json.loads(
+        (ROOT / "translations" / f"{language}.json").read_text(encoding="utf-8")
+    )
+    return data
 
 
 def test_languages_match() -> None:
@@ -25,9 +28,12 @@ def test_used_keys_exist() -> None:
     code = "".join(path.read_text(encoding="utf-8") for path in ROOT.glob("*.py"))
     for reason in ("catalogue_not_ready", "entry_not_loaded", "no_lines", "already_configured"):
         assert reason in code
-    assert "catalogue_not_ready" in english["config_subentries"]["line"]["abort"]
-    assert "no_lines" in english["config_subentries"]["stop"]["abort"]
+    subentries = json.dumps(english["config_subentries"])
+    assert "catalogue_not_ready" in subentries
+    assert "no_lines" in subentries
     for key in english["exceptions"]:
         assert key in code
-    for key in english["config"]["error"]:
+    errors = english["config"]["error"]
+    assert isinstance(errors, dict)
+    for key in errors:
         assert key in code

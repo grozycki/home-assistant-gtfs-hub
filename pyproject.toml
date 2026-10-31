@@ -31,4 +31,35 @@ line-length = 100
 src = ["custom_components", "tests"]
 
 [tool.ruff.lint]
-select = ["E", "F", "I", "UP", "B", "SIM", "RUF"]
+select = ["E", "F", "I", "UP", "B", "SIM", "RUF", "ANN", "TC", "PYI"]
+
+[tool.mypy]
+strict = true
+files = ["custom_components", "tests"]
+warn_unreachable = true
+disallow_any_explicit = true
+disallow_any_unimported = true
+enable_error_code = [
+    "deprecated",
+    "explicit-override",
+    "ignore-without-code",
+    "possibly-undefined",
+    "redundant-expr",
+    "redundant-self",
+    "truthy-bool",
+    "unused-awaitable",
+]
+
+# Home Assistant's flow base classes fix these signatures, with Any in them.
+[[tool.mypy.overrides]]
+module = "custom_components.gtfs_hub.config_flow"
+disallow_any_explicit = false
+
+[[tool.mypy.overrides]]
+module = ["pytest_homeassistant_custom_component.*", "freezegun.*"]
+ignore_missing_imports = true
+
+# The test plugin ships no types, so its classes read as Any here.
+[[tool.mypy.overrides]]
+module = ["conftest", "test_config_flow", "test_entities"]
+disallow_any_unimported = false

@@ -3,9 +3,9 @@
 import logging
 from dataclasses import dataclass, field
 from datetime import timedelta
+from typing import TYPE_CHECKING, override
 
 from homeassistant.config_entries import ConfigEntry
-from homeassistant.core import HomeAssistant
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, UpdateFailed
 from homeassistant.util import dt as dt_util
 
@@ -15,8 +15,10 @@ from gtfs_hub import (
     GtfsHub,
     GtfsNoDataError,
     LineKey,
+    Provider,
     RealtimeData,
     Stop,
+    StopKey,
 )
 
 from .const import (
@@ -34,6 +36,9 @@ from .const import (
 )
 from .nearest import find_nearest
 
+if TYPE_CHECKING:
+    from homeassistant.core import HomeAssistant
+
 _LOGGER = logging.getLogger(__name__)
 _MAX_AGE = timedelta(minutes=5)
 
@@ -42,7 +47,7 @@ _MAX_AGE = timedelta(minutes=5)
 class ScheduleData:
     """The stops of the selected lines."""
 
-    stops: dict[str, Stop]
+    stops: dict[StopKey, Stop]
 
 
 @dataclass(frozen=True, slots=True)
@@ -57,7 +62,7 @@ class NearestStop:
 class DeparturesData:
     """One tick of departures."""
 
-    departures: dict[str, list[Departure]] = field(default_factory=dict)
+    departures: dict[StopKey, list[Departure]] = field(default_factory=dict)
     nearest: dict[str, NearestStop | None] = field(default_factory=dict)
     live: bool = False
 
@@ -65,7 +70,9 @@ class DeparturesData:
 class ScheduleCoordinator(DataUpdateCoordinator[ScheduleData]):
     """Keep the local schedule in line with the source and the selection."""
 
-    def __init__(self, hass: HomeAssistant, entry: ConfigEntry, hub: GtfsHub) -> None:
+    config_entry: GtfsHubConfigEntry
+
+    def __init__(self, hass: HomeAssistant, entry: GtfsHubConfigEntry, hub: GtfsHub) -> None:
         super().__init__(
             hass,
             _LOGGER,
@@ -74,15 +81,18 @@ class ScheduleCoordinator(DataUpdateCoordinator[ScheduleData]):
             update_interval=SCHEDULE_INTERVAL,
         )
         self.hub = hub
+        # Stays False until a first sync gives something to read.
+        self.data = ScheduleData({})
+        self.last_update_success = False
 
     def selection(self) -> list[LineKey]:
         """Return the lines chosen in subentries."""
-        assert self.config_entry is not None
         return [
             LineKey(subentry.data[CONF_ROUTE_TYPE], subentry.data[CONF_SHORT_NAME])
             for subentry in self.config_entry.get_subentries_of_type(SUBENTRY_LINE)
         ]
 
+    @override
     async def _async_update_data(self) -> ScheduleData:
         selection = self.selection()
         try:
@@ -93,7 +103,7 @@ class ScheduleCoordinator(DataUpdateCoordinator[ScheduleData]):
             # The stored database may still answer, so only warn when it does.
             _LOGGER.warning("Schedule sync failed, keeping stored data: %s", err)
         try:
-            stops: dict[str, Stop] = {}
+            stops: dict[StopKey, Stop] = {}
             for line in selection:
                 for stop in await self.hub.async_stops_of_line(line):
                     stops[stop.key] = stop
@@ -105,8 +115,14 @@ class ScheduleCoordinator(DataUpdateCoordinator[ScheduleData]):
 class DeparturesCoordinator(DataUpdateCoordinator[DeparturesData]):
     """Work out departures on the realtime clock."""
 
+    config_entry: GtfsHubConfigEntry
+
     def __init__(
-        self, hass: HomeAssistant, entry: ConfigEntry, hub: GtfsHub, schedule: ScheduleCoordinator
+        self,
+        hass: HomeAssistant,
+        entry: GtfsHubConfigEntry,
+        hub: GtfsHub,
+        schedule: ScheduleCoordinator,
     ) -> None:
         super().__init__(
             hass,
@@ -123,15 +139,13 @@ class DeparturesCoordinator(DataUpdateCoordinator[DeparturesData]):
         self.data = DeparturesData()
         self.last_update_success = False
 
-    def _pinned(self) -> list[str]:
-        assert self.config_entry is not None
+    def _pinned(self) -> list[StopKey]:
         return [
-            subentry.data[CONF_STOP_KEY]
+            StopKey(subentry.data[CONF_STOP_KEY])
             for subentry in self.config_entry.get_subentries_of_type(SUBENTRY_STOP)
         ]
 
-    def _nearest(self, stops: dict[str, Stop]) -> dict[str, NearestStop | None]:
-        assert self.config_entry is not None
+    def _nearest(self, stops: dict[StopKey, Stop]) -> dict[str, NearestStop | None]:
         found: dict[str, NearestStop | None] = {}
         for person in self.config_entry.options.get(CONF_PERSONS, []):
             state = self.hass.states.get(person)
@@ -140,7 +154,7 @@ class DeparturesCoordinator(DataUpdateCoordinator[DeparturesData]):
             found[person] = None
             if latitude is None or longitude is None:
                 continue
-            previous = self.data.nearest.get(person) if self.data else None
+            previous = self.data.nearest.get(person)
             result = find_nearest(
                 latitude, longitude, stops.values(), previous.stop.key if previous else None
             )
@@ -161,8 +175,9 @@ class DeparturesCoordinator(DataUpdateCoordinator[DeparturesData]):
                 _LOGGER.info("Live data is back")
             self._feed_down = False
 
+    @override
     async def _async_update_data(self) -> DeparturesData:
-        if self.schedule.data is None:
+        if not self.schedule.last_update_success:
             raise UpdateFailed("Waiting for the first schedule sync")
         stops = self.schedule.data.stops
         nearest = self._nearest(stops)
@@ -183,3 +198,16 @@ class DeparturesCoordinator(DataUpdateCoordinator[DeparturesData]):
         except GtfsNoDataError as err:
             raise UpdateFailed(f"No schedule available: {err}") from err
         return DeparturesData(departures, nearest, live)
+
+
+@dataclass(slots=True)
+class GtfsHubRuntime:
+    """What one entry keeps while it is loaded."""
+
+    provider: Provider
+    hub: GtfsHub
+    schedule: ScheduleCoordinator
+    departures: DeparturesCoordinator
+
+
+type GtfsHubConfigEntry = ConfigEntry[GtfsHubRuntime]

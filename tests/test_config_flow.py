@@ -1,17 +1,35 @@
+from typing import TYPE_CHECKING
 from unittest.mock import patch
 
 from custom_components.gtfs_hub.const import DOMAIN
 from homeassistant import config_entries
-from homeassistant.core import HomeAssistant
 from homeassistant.data_entry_flow import FlowResultType
+from homeassistant.helpers.selector import SelectSelector
+from probatio import Schema
 
 from conftest import FakeHub, FakeProvider, line_subentry, make_entry
 from gtfs_hub import GtfsConnectionError, GtfsError, GtfsFeedError
 
+if TYPE_CHECKING:
+    from collections.abc import Mapping
+
+    from homeassistant.config_entries import ConfigFlowResult, ConfigSubentryData
+    from homeassistant.core import HomeAssistant
+    from pytest_homeassistant_custom_component.common import MockConfigEntry
+
 BUILD = "custom_components.gtfs_hub.config_flow.async_build_provider"
 
 
-async def _start(hass: HomeAssistant) -> dict:
+def selector_options(result: Mapping[str, object], field: str) -> object:
+    """Return the options of a select field."""
+    schema = result.get("data_schema")
+    assert isinstance(schema, Schema)
+    selector = schema.schema[field]
+    assert isinstance(selector, SelectSelector)
+    return selector.config["options"]
+
+
+async def _start(hass: HomeAssistant) -> ConfigFlowResult:
     return await hass.config_entries.flow.async_init(
         DOMAIN, context={"source": config_entries.SOURCE_USER}
     )
@@ -67,7 +85,11 @@ async def test_generic_provider(hass: HomeAssistant, hub: FakeHub) -> None:
     assert result["result"].unique_id == "generic_https://example.test/gtfs.zip"
 
 
-async def _setup(hass: HomeAssistant, *subentries, options=None):
+async def _setup(
+    hass: HomeAssistant,
+    *subentries: ConfigSubentryData,
+    options: dict[str, list[str]] | None = None,
+) -> MockConfigEntry:
     entry = make_entry(*subentries, options=options)
     entry.add_to_hass(hass)
     await hass.config_entries.async_setup(entry.entry_id)
@@ -84,8 +106,11 @@ async def test_add_line_offers_both_modes(hass: HomeAssistant, hub: FakeHub) -> 
     assert result["errors"] == {"base": "no_matches"}
     result = await flows.async_configure(result["flow_id"], {"query": "11"})
     assert result["step_id"] == "pick"
-    options = result["data_schema"].schema["line"].config["options"]
-    assert [option["label"] for option in options] == ["Bus 11: Long", "Tram 11"]
+    options = selector_options(result, "line")
+    assert options == [
+        {"value": "3:11", "label": "Bus 11: Long"},
+        {"value": "0:11", "label": "Tram 11"},
+    ]
     result = await flows.async_configure(result["flow_id"], {"line": "0:11"})
     assert result["type"] is FlowResultType.CREATE_ENTRY
     await hass.async_block_till_done()
@@ -113,7 +138,7 @@ async def test_add_stop_only_from_selected_lines(hass: HomeAssistant, hub: FakeH
     result = await flows.async_configure(result["flow_id"], {"query": "none"})
     assert result["errors"] == {"base": "no_matches"}
     result = await flows.async_configure(result["flow_id"], {"query": "a"})
-    options = result["data_schema"].schema["stop"].config["options"]
+    options = selector_options(result, "stop")
     assert options == [{"value": "A", "label": "Alfa (C-A)"}]
     result = await flows.async_configure(result["flow_id"], {"stop": "A"})
     assert result["type"] is FlowResultType.CREATE_ENTRY

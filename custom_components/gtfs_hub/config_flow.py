@@ -1,6 +1,6 @@
 """Config, subentry and options flows."""
 
-from typing import Any
+from typing import TYPE_CHECKING, Any, override
 
 import probatio as vol
 from homeassistant.config_entries import (
@@ -32,6 +32,7 @@ from gtfs_hub import (
     GtfsNoDataError,
     Line,
     Stop,
+    StopKey,
     async_list_provider_keys,
 )
 
@@ -52,6 +53,9 @@ from .const import (
     SUBENTRY_LINE,
     SUBENTRY_STOP,
 )
+
+if TYPE_CHECKING:
+    from .coordinator import GtfsHubConfigEntry, GtfsHubRuntime
 
 _MODE_NAMES = {0: "Tram", 3: "Bus", 11: "Trolleybus"}
 _URL = TextSelector(TextSelectorConfig(type=TextSelectorType.URL))
@@ -74,6 +78,7 @@ class GtfsHubConfigFlow(ConfigFlow, domain=DOMAIN):
 
     @classmethod
     @callback
+    @override
     def async_get_supported_subentry_types(
         cls, config_entry: ConfigEntry
     ) -> dict[str, type[ConfigSubentryFlow]]:
@@ -82,6 +87,7 @@ class GtfsHubConfigFlow(ConfigFlow, domain=DOMAIN):
 
     @staticmethod
     @callback
+    @override
     def async_get_options_flow(config_entry: ConfigEntry) -> OptionsFlow:
         """Return the options flow."""
         return GtfsHubOptionsFlow()
@@ -99,6 +105,7 @@ class GtfsHubConfigFlow(ConfigFlow, domain=DOMAIN):
             return "unknown", ""
         return None, provider.name
 
+    @override
     async def async_step_user(self, user_input: dict[str, Any] | None = None) -> ConfigFlowResult:
         """Choose a provider."""
         errors: dict[str, str] = {}
@@ -147,8 +154,8 @@ class _SearchFlow(ConfigSubentryFlow):
 
     _options: list[SelectOptionDict]
 
-    def _runtime(self) -> Any:
-        entry = self._get_entry()
+    def _runtime(self) -> GtfsHubRuntime | None:
+        entry: GtfsHubConfigEntry = self._get_entry()
         return entry.runtime_data if entry.state is ConfigEntryState.LOADED else None
 
     def _query_form(self, errors: dict[str, str] | None = None) -> SubentryFlowResult:
@@ -204,20 +211,20 @@ class LineSubentryFlow(_SearchFlow):
 class StopSubentryFlow(_SearchFlow):
     """Pin a stop of the selected lines."""
 
-    _stops: dict[str, Stop]
+    _stops: dict[StopKey, Stop]
 
     async def async_step_user(self, user_input: dict[str, Any] | None = None) -> SubentryFlowResult:
         """Search among stops of the selected lines."""
         runtime = self._runtime()
         if runtime is None:
             return self.async_abort(reason="entry_not_loaded")
-        schedule = runtime.schedule.data
-        if schedule is None or not schedule.stops:
+        stops = runtime.schedule.data.stops
+        if not stops:
             return self.async_abort(reason="no_lines")
         if user_input is None:
             return self._query_form()
         found = await runtime.hub.async_search_stops(
-            user_input[CONF_QUERY], limit=50, only=schedule.stops.keys()
+            user_input[CONF_QUERY], limit=50, only=stops.keys()
         )
         self._stops = {stop.key: stop for stop in found}
         if not self._stops:
@@ -235,7 +242,7 @@ class StopSubentryFlow(_SearchFlow):
             if subentry.unique_id == key:
                 return self.async_abort(reason="already_configured")
         return self.async_create_entry(
-            title=_stop_label(self._stops[key]), data={CONF_STOP_KEY: key}, unique_id=key
+            title=_stop_label(self._stops[StopKey(key)]), data={CONF_STOP_KEY: key}, unique_id=key
         )
 
 

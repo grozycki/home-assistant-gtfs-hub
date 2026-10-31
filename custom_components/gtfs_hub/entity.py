@@ -1,6 +1,6 @@
 """Shared base entity."""
 
-from typing import Any
+from typing import TYPE_CHECKING
 
 from homeassistant.helpers.device_registry import DeviceEntryType, DeviceInfo
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
@@ -10,8 +10,11 @@ from gtfs_hub import Departure, DepartureStatus
 from .const import DOMAIN
 from .coordinator import DeparturesCoordinator
 
+if TYPE_CHECKING:
+    from homeassistant.util.json import JsonValueType
 
-def departure_as_dict(departure: Departure) -> dict[str, Any]:
+
+def departure_as_dict(departure: Departure) -> dict[str, JsonValueType]:
     """Return a departure in machine-readable, JSON-safe form."""
     return {
         "line": departure.line.short_name,

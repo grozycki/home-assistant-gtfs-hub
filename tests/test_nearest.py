@@ -1,10 +1,10 @@
 from custom_components.gtfs_hub.nearest import distance, find_nearest
 
-from gtfs_hub import Stop
+from gtfs_hub import Stop, StopKey
 
 # At this latitude, 0.001 degree of latitude is about 111 m.
-NEAR = Stop("near", "Near", None, 50.0009, 19.0)
-FAR = Stop("far", "Far", None, 50.05, 19.0)
+NEAR = Stop(StopKey("near"), "Near", None, 50.0009, 19.0)
+FAR = Stop(StopKey("far"), "Far", None, 50.05, 19.0)
 
 
 def test_distance() -> None:
@@ -23,26 +23,26 @@ def test_beyond_the_limit() -> None:
 
 
 def test_stop_without_position_is_ignored() -> None:
-    assert find_nearest(50.0, 19.0, [Stop("x", "X", None, None, None)], None) is None
+    assert find_nearest(50.0, 19.0, [Stop(StopKey("x"), "X", None, None, None)], None) is None
 
 
 def test_keeps_current_stop_when_barely_beaten() -> None:
-    held = Stop("held", "Held", None, 50.0011, 19.0)
+    held = Stop(StopKey("held"), "Held", None, 50.0011, 19.0)
     found = find_nearest(50.0, 19.0, [NEAR, held], "held")
     assert found is not None
     assert found[0] is held
 
 
 def test_moves_when_clearly_beaten() -> None:
-    held = Stop("held", "Held", None, 50.002, 19.0)
+    held = Stop(StopKey("held"), "Held", None, 50.002, 19.0)
     found = find_nearest(50.0, 19.0, [NEAR, held], "held")
     assert found is not None
     assert found[0] is NEAR
 
 
 def test_held_stop_beyond_the_limit_is_dropped() -> None:
-    held = Stop("held", "Held", None, 50.0182, 19.0)
-    close = Stop("close", "Close", None, 50.0178, 19.0)
+    held = Stop(StopKey("held"), "Held", None, 50.0182, 19.0)
+    close = Stop(StopKey("close"), "Close", None, 50.0178, 19.0)
     found = find_nearest(50.0, 19.0, [close, held], "held")
     assert found is not None
     assert found[0] is close
