@@ -18,6 +18,7 @@ from gtfs_hub import (
     Line,
     LineKey,
     RealtimeData,
+    Snapshot,
     StaticFeedRef,
     Stop,
     StopKey,
@@ -89,6 +90,11 @@ class FakeHub:
         if not self.ready:
             raise GtfsNoDataError("empty")
         return [STOP_A, STOP_B]
+
+    async def async_snapshots(self) -> list[Snapshot]:
+        if not self.ready:
+            raise GtfsNoDataError("empty")
+        return []
 
     async def async_search_lines(self, query: str, limit: int = 20) -> list[Line]:
         if not self.ready:

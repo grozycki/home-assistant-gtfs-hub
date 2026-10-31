@@ -103,6 +103,7 @@ class ScheduleCoordinator(DataUpdateCoordinator[ScheduleData]):
             # The stored database may still answer, so only warn when it does.
             _LOGGER.warning("Schedule sync failed, keeping stored data: %s", err)
         try:
+            await self.hub.async_snapshots()
             stops: dict[StopKey, Stop] = {}
             for line in selection:
                 for stop in await self.hub.async_stops_of_line(line):

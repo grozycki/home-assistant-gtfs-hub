@@ -266,3 +266,29 @@ async def test_removed_person_loses_the_sensor(hass: HomeAssistant, hub: FakeHub
     hass.config_entries.async_update_entry(entry, options={"persons": []})
     await hass.async_block_till_done()
     assert er.async_get(hass).async_get(entity_id) is None
+
+
+async def test_action_fetches_realtime_when_nothing_polls(
+    hass: HomeAssistant, hub: FakeHub
+) -> None:
+    hub.realtime = RealtimeData(NOW)
+    entry = await setup(hass, line_subentry())
+    with patch.object(hub, "async_fetch_realtime", return_value=hub.realtime) as fetch:
+        await hass.services.async_call(
+            DOMAIN,
+            "get_departures",
+            {"config_entry_id": entry.entry_id, "stop_key": "A"},
+            blocking=True,
+            return_response=True,
+        )
+    fetch.assert_called_once()
+
+
+async def test_failed_sync_without_lines_or_database_is_a_failure(
+    hass: HomeAssistant, hub: FakeHub
+) -> None:
+    hub.ready = False
+    hub.sync_error = GtfsConnectionError("down")
+    entry = await setup(hass)
+    assert entry.runtime_data.schedule.last_update_success is False
+    assert entry.runtime_data.schedule.update_interval == SCHEDULE_RETRY_INTERVAL

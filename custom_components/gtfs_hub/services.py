@@ -1,5 +1,6 @@
 """Actions of the integration."""
 
+import contextlib
 from typing import TYPE_CHECKING
 
 import probatio as vol
@@ -47,9 +48,14 @@ def async_setup_services(hass: HomeAssistant) -> None:
                 translation_key="unknown_stop",
                 translation_placeholders={"stop": key},
             )
+        # With nothing pinned, the coordinator does not poll, so fetch for this call.
+        realtime = runtime.departures.realtime
+        if realtime is None:
+            with contextlib.suppress(GtfsError):
+                realtime = await runtime.hub.async_fetch_realtime()
         try:
             departures = await runtime.hub.async_departures(
-                key, realtime=runtime.departures.realtime, limit=call.data[CONF_LIMIT]
+                key, realtime=realtime, limit=call.data[CONF_LIMIT]
             )
         except GtfsError as err:
             raise HomeAssistantError(
