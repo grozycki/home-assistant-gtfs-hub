@@ -66,6 +66,7 @@ class VehicleTracker(CoordinatorEntity[DeparturesCoordinator], TrackerEntity):
         super().__init__(coordinator)
         self._key = key
         self._last = tracked
+        self._was_available = True
         # With no zones given, a vehicle passing the house is not reported as home.
         self._attr_in_zones = []
         line = tracked.vehicle.line
@@ -119,8 +120,10 @@ class VehicleTracker(CoordinatorEntity[DeparturesCoordinator], TrackerEntity):
     def _handle_coordinator_update(self) -> None:
         """Write only changes, as a tracker stores every write."""
         tracked = self._tracked
-        if tracked is not None and tracked == self._last and self.available:
+        available = self.available
+        if tracked == self._last and available == self._was_available:
             return
+        self._was_available = available
         if tracked is not None:
             self._last = tracked
         self.async_write_ha_state()

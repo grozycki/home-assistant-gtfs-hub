@@ -152,3 +152,22 @@ async def test_marker_view(
     assert response.status == 200
     assert response.content_type == "image/svg+xml"
     assert (await client.get("/api/gtfs_hub/marker/3/bad/11")).status == 404
+
+
+@pytest.mark.usefixtures("demo")
+async def test_vehicle_returns_at_the_same_place(
+    hass: HomeAssistant, hub: FakeHub, freezer: FrozenDateTimeFactory
+) -> None:
+    hub.vehicles = [vehicle()]
+    await setup(hass, hub)
+    await tick(hass, freezer)
+    hub.vehicles = []
+    await tick(hass, freezer)
+    assert get_state(hass, TRACKER).state == STATE_UNAVAILABLE
+    hub.vehicles = [vehicle()]
+    await tick(hass, freezer)
+    assert get_state(hass, TRACKER).state == "not_home"
+
+
+def test_marker_url_quotes_the_line() -> None:
+    assert marker_url(3, "T/6", None) == "/api/gtfs_hub/marker/3/none/T%2F6"

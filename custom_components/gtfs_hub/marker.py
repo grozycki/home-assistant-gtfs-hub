@@ -2,6 +2,7 @@
 
 from html import escape
 from typing import Final
+from urllib.parse import quote
 
 from aiohttp import web
 from homeassistant.helpers.http import HomeAssistantView
@@ -9,19 +10,19 @@ from homeassistant.helpers.http import HomeAssistantView
 _COLOURS: Final = {0: "#C62828", 3: "#1565C0", 11: "#2E7D32"}
 _DEFAULT_COLOUR: Final = "#455A64"
 _STEP: Final = 15
-_MAX_LINE: Final = 6
+_MAX_LINE: Final = 24
 
 
 def marker_url(route_type: int, line: str, bearing: float | None) -> str:
     """Return the image of a vehicle, rounding the bearing so few images exist."""
     direction = "none" if bearing is None else str(round(bearing / _STEP) * _STEP % 360)
-    return f"/api/gtfs_hub/marker/{route_type}/{direction}/{line}"
+    return f"/api/gtfs_hub/marker/{route_type}/{direction}/{quote(line, safe='')}"
 
 
 def marker_svg(route_type: int, line: str, bearing: int | None) -> str:
     """Draw a marker. The arrow sits inside the circle, as the map crops to one."""
     colour = _COLOURS.get(route_type, _DEFAULT_COLOUR)
-    size = 40 if len(line) < 3 else 30
+    size = 40 if len(line) < 3 else 30 if len(line) < 5 else 20
     arrow = (
         ""
         if bearing is None
