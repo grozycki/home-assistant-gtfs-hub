@@ -11,7 +11,7 @@ from probatio import Schema
 from pytest_homeassistant_custom_component.common import MockConfigEntry
 
 from conftest import FakeHub, FakeProvider, line_subentry, make_entry, stop_subentry
-from gtfs_hub import GtfsConnectionError, GtfsError, GtfsFeedError
+from gtfs_hub import GtfsConnectionError, GtfsError, GtfsFeedError, LineKey
 
 if TYPE_CHECKING:
     from collections.abc import Mapping
@@ -279,3 +279,13 @@ async def test_live_interval_applies_after_saving(hass: HomeAssistant, hub: Fake
     await hass.async_block_till_done()
     assert entry.options["live_interval"] == 15
     assert entry.runtime_data.departures.update_interval == timedelta(seconds=15)
+
+
+async def test_cancelled_options_keep_stored_lines(hass: HomeAssistant, hub: FakeHub) -> None:
+    entry = await _setup(hass, line_subentry())
+    flow = hass.config_entries.options
+    result = await flow.async_init(entry.entry_id)
+    result = await flow.async_configure(result["flow_id"], {"tram": ["0:11"]})
+    assert result["step_id"] == "stops"
+    assert LineKey(3, "11") in hub.synced[-1]
+    flow.async_abort(result["flow_id"])

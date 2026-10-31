@@ -133,6 +133,10 @@ class _SelectionFlow(ConfigEntryBaseFlow):
     def _current_persons(self) -> list[str]:
         """Return the persons to fill in."""
 
+    def _kept_lines(self, chosen: list[LineKey]) -> list[LineKey]:
+        """Return lines to keep stored until the choices are saved."""
+        return []
+
     def _current_interval(self) -> int:
         """Return the live update interval to fill in."""
         return int(DEPARTURES_INTERVAL.total_seconds())
@@ -147,7 +151,7 @@ class _SelectionFlow(ConfigEntryBaseFlow):
 
     async def _async_load_stops(self) -> None:
         keys = [line.key for line in self._chosen]
-        await self._hub().async_sync(keys)
+        await self._hub().async_sync([*keys, *self._kept_lines(keys)])
         self._choices = await self._hub().async_stop_choices(keys)
 
     async def _async_progress(
@@ -458,6 +462,11 @@ class GtfsHubOptionsFlow(_SelectionFlow, OptionsFlow):
         return [
             item.data[CONF_STOP_KEY] for item in self._entry.get_subentries_of_type(SUBENTRY_STOP)
         ]
+
+    @override
+    def _kept_lines(self, chosen: list[LineKey]) -> list[LineKey]:
+        # Cancelling must change nothing, so the reload after saving drops lines, not this step.
+        return [key for key in self._entry.runtime_data.schedule.selection() if key not in chosen]
 
     @override
     def _current_persons(self) -> list[str]:
