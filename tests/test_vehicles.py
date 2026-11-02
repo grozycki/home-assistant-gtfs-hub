@@ -35,7 +35,7 @@ if TYPE_CHECKING:
     from homeassistant.core import HomeAssistant
     from pytest_homeassistant_custom_component.typing import ClientSessionGenerator
 
-TRACKER = "device_tracker.11_v1"
+TRACKER = "device_tracker.gtfs_hub_fake_11_v1"
 
 
 @pytest.fixture

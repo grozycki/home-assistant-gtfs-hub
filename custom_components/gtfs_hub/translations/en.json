@@ -189,5 +189,11 @@
         }
       }
     }
+  },
+  "issues": {
+    "trackers_recorded": {
+      "title": "Vehicle trackers fill the recorder",
+      "description": "{entry} has {count} vehicle trackers, and the recorder stores every move of each. To keep no vehicle history, add `{pattern}` under `recorder: exclude: entity_globs:` in `configuration.yaml` and restart Home Assistant."
+    }
   }
 }

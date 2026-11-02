@@ -314,6 +314,8 @@ class GtfsHubConfigFlow(_SelectionFlow, ConfigFlow, domain=DOMAIN):
     """Add a source and choose what to follow."""
 
     VERSION = 1
+    # 2 gives tracker entity IDs their prefix.
+    MINOR_VERSION = 2
 
     _flow_hub: GtfsHub
     _provider: Provider

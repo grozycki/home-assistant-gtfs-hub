@@ -2,7 +2,8 @@
   "domain": "gtfs_hub",
   "name": "GTFS Hub",
   "after_dependencies": [
-    "person"
+    "person",
+    "recorder"
   ],
   "codeowners": [
     "@grozycki"

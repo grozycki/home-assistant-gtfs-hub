@@ -68,6 +68,7 @@ module = [
     "test_config_flow",
     "test_delay_events",
     "test_entities",
+    "test_recorder_load",
     "test_vehicle_lifecycle",
     "test_vehicles",
 ]

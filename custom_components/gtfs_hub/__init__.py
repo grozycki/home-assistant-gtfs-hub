@@ -8,6 +8,7 @@ from homeassistant.core import HomeAssistant, callback
 from homeassistant.exceptions import ConfigEntryError
 from homeassistant.helpers import config_validation as cv
 from homeassistant.helpers import device_registry as dr
+from homeassistant.helpers import entity_registry as er
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
 
 from gtfs_hub import (
@@ -37,6 +38,7 @@ from .coordinator import (
     ScheduleCoordinator,
 )
 from .marker import MarkerView, StopMarkerView
+from .recorder_load import async_clear_recorder_issue, tracker_entity_id, tracker_prefix
 from .services import async_setup_services
 from .sightings import async_remove_sightings
 
@@ -69,6 +71,32 @@ def database_path(hass: HomeAssistant, unique_id: str) -> Path:
     """Return the database of a source, known before its entry exists."""
     name = hashlib.sha256(unique_id.encode()).hexdigest()[:16]
     return Path(hass.config.cache_path(DOMAIN, f"{name}.db"))
+
+
+async def async_migrate_entry(hass: HomeAssistant, entry: GtfsHubConfigEntry) -> bool:
+    """Give trackers made before minor version 2 their prefixed entity IDs, once.
+
+    Home Assistant itself refuses entries of a newer major version.
+    """
+    if entry.minor_version < 2:
+        _rename_trackers(hass, entry)
+        hass.config_entries.async_update_entry(entry, minor_version=2)
+    return True
+
+
+def _rename_trackers(hass: HomeAssistant, entry: GtfsHubConfigEntry) -> None:
+    registry = er.async_get(hass)
+    provider = entry.data[CONF_PROVIDER]
+    for item in er.async_entries_for_config_entry(registry, entry.entry_id):
+        if item.domain != "device_tracker" or item.entity_id.startswith(tracker_prefix(provider)):
+            continue
+        # The original name is "11 #1347", or "11 <key>" without a fleet number.
+        line, _, number = (item.original_name or "").partition(" ")
+        if not line or not number:
+            continue
+        target = tracker_entity_id(provider, line, number.removeprefix("#"))
+        if registry.async_get(target) is None:
+            registry.async_update_entity(item.entity_id, new_entity_id=target)
 
 
 async def async_setup_entry(hass: HomeAssistant, entry: GtfsHubConfigEntry) -> bool:
@@ -121,8 +149,11 @@ async def _async_reload(hass: HomeAssistant, entry: GtfsHubConfigEntry) -> None:
 
 
 async def async_unload_entry(hass: HomeAssistant, entry: GtfsHubConfigEntry) -> bool:
-    """Unload an entry."""
-    return await hass.config_entries.async_unload_platforms(entry, PLATFORMS)
+    """Unload an entry. Its trackers write nothing while it is unloaded, so the issue goes."""
+    unloaded = await hass.config_entries.async_unload_platforms(entry, PLATFORMS)
+    if unloaded:
+        async_clear_recorder_issue(hass, entry)
+    return unloaded
 
 
 async def async_remove_entry(hass: HomeAssistant, entry: GtfsHubConfigEntry) -> None:

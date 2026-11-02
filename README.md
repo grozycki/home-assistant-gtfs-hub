@@ -18,21 +18,20 @@ Delay reads unknown, not 0, when no prediction exists. Lists are left out of the
 
 Pinned stops appear on the map with a stop sign marker. Vehicles of tracked lines appear when the provider declares a stable vehicle identity, as GZM does, or on a test instance with `GTFS_HUB_DEMO_VEHICLES=1`.
 
-A tracker is named by its line and fleet number, such as `11 #1347`, or by the vehicle key when the source has no number. Fleet numbers can repeat between carriers, so two trackers may share a name, even on one line. A tracker is unavailable while its vehicle is away or on another line, and is removed once the vehicle has been missing for 3 days of service. Time when Home Assistant is off or the feed shows no vehicles of your lines does not count. Each tracked line is also a device that links to its timetable.
+A tracker is named by its line and fleet number, such as `11 #1347`, or by the vehicle key when the source has no number. Its entity ID starts with `gtfs_hub_` and the provider, such as `device_tracker.gtfs_hub_gzm_11_1347`. Fleet numbers can repeat between carriers, so two trackers may share a name, even on one line. A tracker is unavailable while its vehicle is away or on another line, and is removed once the vehicle has been missing for 3 days of service. Time when Home Assistant is off or the feed shows no vehicles of your lines does not count. Each tracked line is also a device that links to its timetable.
 
 ### Recorder
 
-A moving vehicle's tracker is written once per live update, every 30 seconds by default, so 30 vehicles store close to 90,000 states a day. Trip, headsign and direction are left out of the recorder, but the position stays, so the map card can show where a vehicle went. To keep no history of vehicles, exclude the trackers of your lines in `configuration.yaml`, one pattern per line:
+A moving vehicle's tracker is written once per live update, every 30 seconds by default, so 30 vehicles store close to 90,000 states a day. Trip, headsign and direction are left out of the recorder, but the position stays, so the map card can show where a vehicle went. To keep no history of vehicles, exclude the trackers in `configuration.yaml` and restart Home Assistant:
 
 ```yaml
 recorder:
   exclude:
     entity_globs:
-      - device_tracker.11_*
-      - device_tracker.t6_*
+      - device_tracker.gtfs_hub_*
 ```
 
-A broader pattern such as `device_tracker.*` would also drop the history of phones and other trackers.
+`device_tracker.gtfs_hub_gzm_*` excludes the trackers of one provider only. When an entry has 20 or more trackers and the recorder still stores them, Home Assistant shows a repair issue with this pattern. Trackers made by an earlier version are renamed to the prefixed form once, when the integration updates.
 
 A vehicle marker shows the line, a picture by mode and size, and an arrow for its direction, worked out from movement. A white ring means a low floor. Pictures come from the vehicle planned for the trip, so a replacement may differ.
 

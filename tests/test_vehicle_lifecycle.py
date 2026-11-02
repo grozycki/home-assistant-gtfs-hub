@@ -33,7 +33,7 @@ if TYPE_CHECKING:
     from freezegun.api import FrozenDateTimeFactory
     from homeassistant.core import HomeAssistant
 
-TRACKER = "device_tracker.11_v1"
+TRACKER = "device_tracker.gtfs_hub_fake_11_v1"
 
 pytestmark = pytest.mark.usefixtures("demo")
 
@@ -80,7 +80,7 @@ async def test_tracker_named_by_fleet_number(
     hub.vehicles = [vehicle(label="1347")]
     await start(hass, make())
     await advance(hass, freezer, DEPARTURES_INTERVAL)
-    state = get_state(hass, "device_tracker.11_1347")
+    state = get_state(hass, "device_tracker.gtfs_hub_fake_11_1347")
     assert state.attributes["friendly_name"] == "11 #1347"
     assert state.attributes["fleet_number"] == "1347"
 
@@ -139,7 +139,7 @@ def stored_tracker(hass: HomeAssistant, entry: MockConfigEntry) -> str:
         unique_id,
         config_entry=entry,
         config_subentry_id=line_id(entry),
-        suggested_object_id="11_v1",
+        suggested_object_id="gtfs_hub_fake_11_v1",
     )
     return unique_id
 

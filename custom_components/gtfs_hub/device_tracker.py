@@ -10,9 +10,10 @@ from homeassistant.util import dt as dt_util
 
 from gtfs_hub import LineKey
 
-from .const import CONF_ROUTE_TYPE, CONF_SHORT_NAME, DOMAIN, SUBENTRY_LINE
+from .const import CONF_PROVIDER, CONF_ROUTE_TYPE, CONF_SHORT_NAME, DOMAIN, SUBENTRY_LINE
 from .coordinator import DeparturesCoordinator, GtfsHubConfigEntry, TrackedVehicle
 from .marker import form_of, marker_url
+from .recorder_load import async_check_recorder_load, tracker_entity_id
 from .sightings import Sightings
 
 if TYPE_CHECKING:
@@ -32,6 +33,7 @@ async def async_setup_entry(
     if not coordinator.tracks_vehicles:
         return
     attribution = entry.runtime_data.provider.attribution
+    provider = entry.data[CONF_PROVIDER]
     lines = {
         LineKey(item.data[CONF_ROUTE_TYPE], item.data[CONF_SHORT_NAME]): item
         for item in entry.get_subentries_of_type(SUBENTRY_LINE)
@@ -49,6 +51,7 @@ async def async_setup_entry(
     @callback
     def update() -> None:
         now = dt_util.utcnow()
+        changed = False
         vehicles = coordinator.data.vehicles
         sightings.tick(now, live=bool(vehicles))
         for key, tracked in vehicles.items():
@@ -60,15 +63,20 @@ async def async_setup_entry(
             if unique_id in known:
                 continue
             known.add(unique_id)
+            changed = True
             async_add_entities(
-                [VehicleTracker(coordinator, attribution, key, line, tracked)],
+                [VehicleTracker(coordinator, attribution, provider, key, line, tracked)],
                 config_subentry_id=line.subentry_id,
             )
         for unique_id in sightings.sweep(now):
             known.discard(unique_id)
             if entity_id := registry.async_get_entity_id("device_tracker", DOMAIN, unique_id):
                 registry.async_remove(entity_id)
+                changed = True
+        if changed:
+            async_check_recorder_load(hass, entry)
 
+    async_check_recorder_load(hass, entry)
     update()
     entry.async_on_unload(coordinator.async_add_listener(update))
 
@@ -88,6 +96,7 @@ class VehicleTracker(CoordinatorEntity[DeparturesCoordinator], TrackerEntity):
         self,
         coordinator: DeparturesCoordinator,
         attribution: str | None,
+        provider: str,
         key: str,
         line: ConfigSubentry,
         tracked: TrackedVehicle,
@@ -102,8 +111,11 @@ class VehicleTracker(CoordinatorEntity[DeparturesCoordinator], TrackerEntity):
         self._attr_attribution = attribution
         self._attr_unique_id = tracker_unique_id(line, tracked)
         # Home Assistant gives trackers no device, so the name carries the line.
-        number = f"#{vehicle.label}" if vehicle.label else vehicle.key
-        self._attr_name = f"{vehicle.line.short_name} {number}"
+        number = vehicle.label or vehicle.key
+        shown = f"#{vehicle.label}" if vehicle.label else vehicle.key
+        self._attr_name = f"{vehicle.line.short_name} {shown}"
+        # A request: Home Assistant keeps the ID of a tracker it already knows.
+        self.entity_id = tracker_entity_id(provider, vehicle.line.short_name, number)
 
     @property
     def _tracked(self) -> TrackedVehicle | None:

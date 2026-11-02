@@ -189,5 +189,11 @@
         }
       }
     }
+  },
+  "issues": {
+    "trackers_recorded": {
+      "title": "Lokalizatory pojazdów zapełniają rejestrator",
+      "description": "{entry} ma {count} lokalizatorów pojazdów, a rejestrator zapisuje każdy ich ruch. Aby nie trzymać historii pojazdów, dodaj `{pattern}` w `recorder: exclude: entity_globs:` w `configuration.yaml` i uruchom ponownie Home Assistanta."
+    }
   }
 }

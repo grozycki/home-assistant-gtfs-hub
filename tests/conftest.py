@@ -190,6 +190,7 @@ def make_entry(
         options=options or {},
         unique_id="fake",
         subentries_data=list(subentries),
+        minor_version=2,
     )
 
 
