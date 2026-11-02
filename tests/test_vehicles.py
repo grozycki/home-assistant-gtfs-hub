@@ -7,6 +7,7 @@ from unittest.mock import patch
 import pytest
 from custom_components.gtfs_hub.const import DEMO_VEHICLES_VARIABLE, DEPARTURES_INTERVAL
 from custom_components.gtfs_hub.marker import STOP_MARKER_URL, form_of, marker_svg, marker_url
+from homeassistant.config_entries import ConfigSubentryData
 from homeassistant.const import STATE_UNAVAILABLE
 from homeassistant.helpers import entity_registry as er
 from homeassistant.setup import async_setup_component
@@ -16,6 +17,7 @@ from pytest_homeassistant_custom_component.common import (
 )
 
 from conftest import (
+    TRAM_11,
     FakeHub,
     departure,
     get_state,
@@ -64,6 +66,17 @@ async def test_no_trackers_without_the_gate(hass: HomeAssistant, hub: FakeHub) -
     assert hass.states.async_entity_ids("device_tracker") == []
 
 
+async def test_stable_identity_opens_the_gate(
+    hass: HomeAssistant, hub: FakeHub, freezer: FrozenDateTimeFactory
+) -> None:
+    hub.provider.capabilities = replace(hub.provider.capabilities, stable_vehicle_id=True)
+    with patch.dict("os.environ", {DEMO_VEHICLES_VARIABLE: "0"}):
+        await setup(hass, hub)
+    hub.vehicles = [vehicle()]
+    await tick(hass, freezer)
+    assert get_state(hass, TRACKER).state == "not_home"
+
+
 @pytest.mark.usefixtures("demo")
 async def test_vehicle_appears_on_the_map(
     hass: HomeAssistant, hub: FakeHub, freezer: FrozenDateTimeFactory
@@ -95,6 +108,42 @@ async def test_new_trip_keeps_the_entity_and_absence_is_unavailable(
         hub.vehicles = []
         await tick(hass, freezer)
     assert get_state(hass, TRACKER).state == STATE_UNAVAILABLE
+
+
+@pytest.mark.usefixtures("demo")
+async def test_vehicle_moving_to_another_tracked_line(
+    hass: HomeAssistant, hub: FakeHub, freezer: FrozenDateTimeFactory
+) -> None:
+    tram = ConfigSubentryData(
+        data={"route_type": 0, "short_name": "11"},
+        subentry_type="line",
+        title="Tram 11",
+        unique_id="0:11",
+    )
+    entry = make_entry(line_subentry(), tram, stop_subentry())
+    entry.add_to_hass(hass)
+    hub.vehicles = [vehicle()]
+    await hass.config_entries.async_setup(entry.entry_id)
+    await hass.async_block_till_done()
+    await tick(hass, freezer)
+    hub.vehicles = [replace(vehicle(), line=TRAM_11)]
+    await tick(hass, freezer)
+    assert get_state(hass, TRACKER).state == STATE_UNAVAILABLE
+    registry = er.async_get(hass)
+    moved = [
+        item
+        for item in registry.entities.values()
+        if item.domain == "device_tracker" and item.entity_id != TRACKER
+    ]
+    first = registry.async_get(TRACKER)
+    assert first is not None
+    assert len(moved) == 1
+    assert moved[0].config_subentry_id != first.config_subentry_id
+    assert (
+        get_state(hass, moved[0].entity_id)
+        .attributes["entity_picture"]
+        .startswith("/api/gtfs_hub/marker/0/")
+    )
 
 
 @pytest.mark.usefixtures("demo")

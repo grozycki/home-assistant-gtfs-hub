@@ -32,15 +32,16 @@ async def async_setup_entry(
         LineKey(item.data[CONF_ROUTE_TYPE], item.data[CONF_SHORT_NAME]): item.subentry_id
         for item in entry.get_subentries_of_type(SUBENTRY_LINE)
     }
-    known: set[str] = set()
+    # A vehicle that moves to another tracked line gets a tracker under that line too.
+    known: set[tuple[str, str]] = set()
 
     @callback
     def add_new() -> None:
         for key, tracked in coordinator.data.vehicles.items():
             subentry_id = lines.get(tracked.vehicle.line)
-            if key in known or subentry_id is None:
+            if subentry_id is None or (subentry_id, key) in known:
                 continue
-            known.add(key)
+            known.add((subentry_id, key))
             async_add_entities(
                 [VehicleTracker(coordinator, attribution, key, subentry_id, tracked)],
                 config_subentry_id=subentry_id,
@@ -65,6 +66,7 @@ class VehicleTracker(CoordinatorEntity[DeparturesCoordinator], TrackerEntity):
     ) -> None:
         super().__init__(coordinator)
         self._key = key
+        self._line = tracked.vehicle.line
         self._last = tracked
         self._was_available = True
         # With no zones given, a vehicle passing the house is not reported as home.
@@ -76,7 +78,9 @@ class VehicleTracker(CoordinatorEntity[DeparturesCoordinator], TrackerEntity):
 
     @property
     def _tracked(self) -> TrackedVehicle | None:
-        return self.coordinator.data.vehicles.get(self._key)
+        """Return the vehicle while it serves this tracker's line."""
+        tracked = self.coordinator.data.vehicles.get(self._key)
+        return tracked if tracked is not None and tracked.vehicle.line == self._line else None
 
     @property
     @override
