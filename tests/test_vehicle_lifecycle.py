@@ -8,6 +8,7 @@ from unittest.mock import patch
 import pytest
 from custom_components.gtfs_hub.const import DEMO_VEHICLES_VARIABLE, DEPARTURES_INTERVAL, DOMAIN
 from custom_components.gtfs_hub.sightings import RETENTION
+from homeassistant.config_entries import ConfigSubentryData
 from homeassistant.helpers import device_registry as dr
 from homeassistant.helpers import entity_registry as er
 from pytest_homeassistant_custom_component.common import (
@@ -25,7 +26,7 @@ from conftest import (
     stop_subentry,
     vehicle,
 )
-from gtfs_hub import Vehicle, VehicleKey
+from gtfs_hub import Vehicle, VehicleClass, VehicleKey
 
 if TYPE_CHECKING:
     from collections.abc import Generator
@@ -81,7 +82,8 @@ async def test_tracker_named_by_fleet_number(
     await start(hass, make())
     await advance(hass, freezer, DEPARTURES_INTERVAL)
     state = get_state(hass, "device_tracker.gtfs_hub_fake_11_1347")
-    assert state.attributes["friendly_name"] == "11 #1347"
+    assert state.attributes["friendly_name"] == "11 - Bus #1347"
+    assert state.attributes["vehicle_type"] == "bus_standard"
     assert state.attributes["fleet_number"] == "1347"
 
 
@@ -92,7 +94,7 @@ async def test_tracker_without_fleet_number_uses_the_key(
     await start(hass, make())
     await advance(hass, freezer, DEPARTURES_INTERVAL)
     state = get_state(hass, TRACKER)
-    assert state.attributes["friendly_name"] == "11 v1"
+    assert state.attributes["friendly_name"] == "11 - Bus v1"
     assert state.attributes["fleet_number"] is None
 
 
@@ -249,3 +251,63 @@ async def test_unreadable_sightings_count_as_seen_at_startup(
     await hass.async_block_till_done()
     await advance(hass, freezer, RETENTION - timedelta(hours=1))
     assert TRACKER in tracked(hass)
+
+
+LOW_FLOOR_12 = VehicleClass("B N", length=12, low_floor=True)
+LOW_FLOOR_18 = VehicleClass("C N", length=18, low_floor=True)
+
+
+async def test_name_in_polish(
+    hass: HomeAssistant, hub: FakeHub, freezer: FrozenDateTimeFactory
+) -> None:
+    hass.config.language = "pl"
+    hub.vehicles = [replace(vehicle(label="1347"), planned_class=LOW_FLOOR_12)]
+    await start(hass, make())
+    await advance(hass, freezer, DEPARTURES_INTERVAL)
+    state = get_state(hass, "device_tracker.gtfs_hub_fake_11_1347")
+    assert state.attributes["friendly_name"] == "11 - Autobus niskopodłogowy #1347"
+
+
+async def test_name_follows_the_planned_type(
+    hass: HomeAssistant, hub: FakeHub, freezer: FrozenDateTimeFactory
+) -> None:
+    hub.vehicles = [replace(vehicle(label="1200"), planned_class=LOW_FLOOR_12)]
+    await start(hass, make())
+    await advance(hass, freezer, DEPARTURES_INTERVAL)
+    entity_id = "device_tracker.gtfs_hub_fake_11_1200"
+    assert get_state(hass, entity_id).attributes["friendly_name"] == "11 - Low-floor bus #1200"
+    hub.vehicles = [replace(vehicle("t2", label="1200"), planned_class=LOW_FLOOR_18)]
+    await advance(hass, freezer, DEPARTURES_INTERVAL)
+    state = get_state(hass, entity_id)
+    assert state.attributes["friendly_name"] == "11 - Low-floor articulated bus #1200"
+    assert state.attributes["vehicle_type"] == "bus_long_low"
+
+
+async def test_tram_without_planned_vehicle_in_polish(
+    hass: HomeAssistant, hub: FakeHub, freezer: FrozenDateTimeFactory
+) -> None:
+    hass.config.language = "pl"
+    tram = ConfigSubentryData(
+        data={"route_type": 0, "short_name": "11"},
+        subentry_type="line",
+        title="Tram 11",
+        unique_id="0:11",
+    )
+    entry = make_entry(tram)
+    hub.vehicles = [replace(vehicle(label="828"), line=TRAM_11)]
+    await start(hass, entry)
+    await advance(hass, freezer, DEPARTURES_INTERVAL)
+    state = get_state(hass, "device_tracker.gtfs_hub_fake_11_828")
+    assert state.attributes["friendly_name"] == "11 - Tramwaj #828"
+
+
+async def test_source_description_comes_first(
+    hass: HomeAssistant, hub: FakeHub, freezer: FrozenDateTimeFactory
+) -> None:
+    described = replace(LOW_FLOOR_18, description="Autobus niskopodłogowy")
+    hub.vehicles = [replace(vehicle(label="1739"), planned_class=described)]
+    await start(hass, make())
+    await advance(hass, freezer, DEPARTURES_INTERVAL)
+    state = get_state(hass, "device_tracker.gtfs_hub_fake_11_1739")
+    assert state.attributes["friendly_name"] == "11 - Autobus niskopodłogowy #1739"
+    assert state.attributes["vehicle_type"] == "bus_long_low"

@@ -160,6 +160,49 @@
           }
         }
       }
+    },
+    "device_tracker": {
+      "vehicle": {
+        "state_attributes": {
+          "vehicle_type": {
+            "name": "Vehicle type",
+            "state": {
+              "bus_short": "Minibus",
+              "bus_short_low": "Low-floor minibus",
+              "bus_standard": "Bus",
+              "bus_standard_low": "Low-floor bus",
+              "bus_long": "Articulated bus",
+              "bus_long_low": "Low-floor articulated bus",
+              "bus_double": "Bus in double traction",
+              "bus_double_low": "Low-floor bus in double traction",
+              "tram_short": "Short tram",
+              "tram_short_low": "Low-floor short tram",
+              "tram_standard": "Tram",
+              "tram_standard_low": "Low-floor tram",
+              "tram_long": "Articulated tram",
+              "tram_long_low": "Low-floor articulated tram",
+              "tram_double": "Tram in double traction",
+              "tram_double_low": "Low-floor tram in double traction",
+              "trolleybus_short": "Short trolleybus",
+              "trolleybus_short_low": "Low-floor short trolleybus",
+              "trolleybus_standard": "Trolleybus",
+              "trolleybus_standard_low": "Low-floor trolleybus",
+              "trolleybus_long": "Articulated trolleybus",
+              "trolleybus_long_low": "Low-floor articulated trolleybus",
+              "trolleybus_double": "Trolleybus in double traction",
+              "trolleybus_double_low": "Low-floor trolleybus in double traction",
+              "other_short": "Short vehicle",
+              "other_short_low": "Low-floor short vehicle",
+              "other_standard": "Vehicle",
+              "other_standard_low": "Low-floor vehicle",
+              "other_long": "Articulated vehicle",
+              "other_long_low": "Low-floor articulated vehicle",
+              "other_double": "Vehicle in double traction",
+              "other_double_low": "Low-floor vehicle in double traction"
+            }
+          }
+        }
+      }
     }
   },
   "exceptions": {

@@ -160,6 +160,49 @@
           }
         }
       }
+    },
+    "device_tracker": {
+      "vehicle": {
+        "state_attributes": {
+          "vehicle_type": {
+            "name": "Typ pojazdu",
+            "state": {
+              "bus_short": "Minibus",
+              "bus_short_low": "Minibus niskopodłogowy",
+              "bus_standard": "Autobus",
+              "bus_standard_low": "Autobus niskopodłogowy",
+              "bus_long": "Autobus przegubowy",
+              "bus_long_low": "Autobus przegubowy niskopodłogowy",
+              "bus_double": "Autobus w składzie podwójnym",
+              "bus_double_low": "Autobus niskopodłogowy w składzie podwójnym",
+              "tram_short": "Tramwaj krótki",
+              "tram_short_low": "Tramwaj krótki niskopodłogowy",
+              "tram_standard": "Tramwaj",
+              "tram_standard_low": "Tramwaj niskopodłogowy",
+              "tram_long": "Tramwaj przegubowy",
+              "tram_long_low": "Tramwaj przegubowy niskopodłogowy",
+              "tram_double": "Tramwaj w składzie podwójnym",
+              "tram_double_low": "Tramwaj niskopodłogowy w składzie podwójnym",
+              "trolleybus_short": "Trolejbus krótki",
+              "trolleybus_short_low": "Trolejbus krótki niskopodłogowy",
+              "trolleybus_standard": "Trolejbus",
+              "trolleybus_standard_low": "Trolejbus niskopodłogowy",
+              "trolleybus_long": "Trolejbus przegubowy",
+              "trolleybus_long_low": "Trolejbus przegubowy niskopodłogowy",
+              "trolleybus_double": "Trolejbus w składzie podwójnym",
+              "trolleybus_double_low": "Trolejbus niskopodłogowy w składzie podwójnym",
+              "other_short": "Pojazd krótki",
+              "other_short_low": "Pojazd krótki niskopodłogowy",
+              "other_standard": "Pojazd",
+              "other_standard_low": "Pojazd niskopodłogowy",
+              "other_long": "Pojazd przegubowy",
+              "other_long_low": "Pojazd przegubowy niskopodłogowy",
+              "other_double": "Pojazd w składzie podwójnym",
+              "other_double_low": "Pojazd niskopodłogowy w składzie podwójnym"
+            }
+          }
+        }
+      }
     }
   },
   "exceptions": {

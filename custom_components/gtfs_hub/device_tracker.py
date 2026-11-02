@@ -5,6 +5,7 @@ from typing import TYPE_CHECKING, override
 from homeassistant.components.device_tracker.entity import TrackerEntity
 from homeassistant.core import HomeAssistant, callback
 from homeassistant.helpers import entity_registry as er
+from homeassistant.helpers.translation import async_get_translations
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
 from homeassistant.util import dt as dt_util
 
@@ -12,12 +13,12 @@ from gtfs_hub import LineKey
 
 from .const import CONF_PROVIDER, CONF_ROUTE_TYPE, CONF_SHORT_NAME, DOMAIN, SUBENTRY_LINE
 from .coordinator import DeparturesCoordinator, GtfsHubConfigEntry, TrackedVehicle
-from .marker import form_of, marker_url
+from .marker import form_of, marker_url, mode_of
 from .recorder_load import async_check_recorder_load, tracker_entity_id
 from .sightings import Sightings
 
 if TYPE_CHECKING:
-    from collections.abc import Mapping
+    from collections.abc import Callable, Mapping
 
     from homeassistant.config_entries import ConfigSubentry
     from homeassistant.helpers.entity_platform import AddConfigEntryEntitiesCallback
@@ -38,6 +39,11 @@ async def async_setup_entry(
         LineKey(item.data[CONF_ROUTE_TYPE], item.data[CONF_SHORT_NAME]): item
         for item in entry.get_subentries_of_type(SUBENTRY_LINE)
     }
+    translations = await async_get_translations(hass, hass.config.language, "entity", {DOMAIN})
+
+    def type_name(vehicle_type: str) -> str:
+        return translations.get(_TYPE_TRANSLATION.format(vehicle_type), vehicle_type)
+
     registry = er.async_get(hass)
     sightings = Sightings(hass, entry.entry_id)
     await sightings.async_load(
@@ -65,7 +71,7 @@ async def async_setup_entry(
             known.add(unique_id)
             changed = True
             async_add_entities(
-                [VehicleTracker(coordinator, attribution, provider, key, line, tracked)],
+                [VehicleTracker(coordinator, attribution, provider, type_name, key, line, tracked)],
                 config_subentry_id=line.subentry_id,
             )
         for unique_id in sightings.sweep(now):
@@ -81,6 +87,18 @@ async def async_setup_entry(
     entry.async_on_unload(coordinator.async_add_listener(update))
 
 
+_TYPE_TRANSLATION = (
+    f"component.{DOMAIN}.entity.device_tracker.vehicle.state_attributes.vehicle_type.state.{{}}"
+)
+
+
+def vehicle_type(tracked: TrackedVehicle) -> str:
+    """Return the type key of the vehicle planned for the current trip, such as bus_long_low."""
+    vehicle = tracked.vehicle
+    form = form_of(vehicle.planned_class).replace("-", "_")
+    return f"{mode_of(vehicle.line.route_type)}_{form}"
+
+
 def tracker_unique_id(line: ConfigSubentry, tracked: TrackedVehicle) -> str:
     """Return the identity of one vehicle on one tracked line."""
     return f"{line.subentry_id}_{tracked.vehicle.key}"
@@ -90,6 +108,8 @@ class VehicleTracker(CoordinatorEntity[DeparturesCoordinator], TrackerEntity):
     """One vehicle on one line. Its identity holds no trip, so a new trip keeps the entity."""
 
     _attr_has_entity_name = True
+    # Translates the vehicle_type attribute. The name is set here, as it must follow the trip.
+    _attr_translation_key = "vehicle"
     _unrecorded_attributes = frozenset({"trip_id", "derived_bearing", "headsign"})
 
     def __init__(
@@ -97,12 +117,14 @@ class VehicleTracker(CoordinatorEntity[DeparturesCoordinator], TrackerEntity):
         coordinator: DeparturesCoordinator,
         attribution: str | None,
         provider: str,
+        type_name: Callable[[str], str],
         key: str,
         line: ConfigSubentry,
         tracked: TrackedVehicle,
     ) -> None:
         super().__init__(coordinator)
         self._key = key
+        self._type_name = type_name
         self._last = tracked
         self._was_available = True
         # With no zones given, a vehicle passing the house is not reported as home.
@@ -110,12 +132,23 @@ class VehicleTracker(CoordinatorEntity[DeparturesCoordinator], TrackerEntity):
         vehicle = tracked.vehicle
         self._attr_attribution = attribution
         self._attr_unique_id = tracker_unique_id(line, tracked)
-        # Home Assistant gives trackers no device, so the name carries the line.
+        self._attr_name = self._name_of(tracked)
         number = vehicle.label or vehicle.key
-        shown = f"#{vehicle.label}" if vehicle.label else vehicle.key
-        self._attr_name = f"{vehicle.line.short_name} {shown}"
         # A request: Home Assistant keeps the ID of a tracker it already knows.
         self.entity_id = tracker_entity_id(provider, vehicle.line.short_name, number)
+
+    def _name_of(self, tracked: TrackedVehicle) -> str:
+        """Return line, type and number. Trackers have no device, so the name carries the line."""
+        vehicle = tracked.vehicle
+        number = f"#{vehicle.label}" if vehicle.label else vehicle.key
+        planned = vehicle.planned_class
+        # The source's own words come first; the translated type covers classes without them.
+        kind = (
+            planned.description
+            if planned is not None and planned.description
+            else self._type_name(vehicle_type(tracked))
+        )
+        return f"{vehicle.line.short_name} - {kind} {number}"
 
     @property
     def _tracked(self) -> TrackedVehicle | None:
@@ -162,6 +195,7 @@ class VehicleTracker(CoordinatorEntity[DeparturesCoordinator], TrackerEntity):
             "length": planned.length if planned else None,
             "low_floor": planned.low_floor if planned else None,
             "line": vehicle.line.short_name,
+            "vehicle_type": vehicle_type(self._last),
             "fleet_number": vehicle.label,
             "headsign": vehicle.headsign,
             "trip_id": vehicle.trip_id,
@@ -179,4 +213,8 @@ class VehicleTracker(CoordinatorEntity[DeparturesCoordinator], TrackerEntity):
         self._was_available = available
         if tracked is not None:
             self._last = tracked
+            # The next trip may plan another type, and the name follows it.
+            name = self._name_of(tracked)
+            if name != self._attr_name:
+                self._attr_name = name
         self.async_write_ha_state()
