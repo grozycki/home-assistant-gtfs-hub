@@ -82,7 +82,11 @@ async def test_full_setup(hass: HomeAssistant, hub: FakeHub) -> None:
         )
     assert result["type"] is FlowResultType.CREATE_ENTRY
     assert result["title"] == "Fake"
-    assert result["options"] == {"persons": ["person.ania"], "live_interval": 30}
+    assert result["options"] == {
+        "persons": ["person.ania"],
+        "live_interval": 30,
+        "delay_threshold": 3,
+    }
     await hass.async_block_till_done()
     entry = result["result"]
     assert len(entry.get_subentries_of_type("line")) == 2
@@ -232,7 +236,7 @@ async def test_options_add_and_remove_with_one_reload(hass: HomeAssistant, hub: 
     reload.assert_called_once_with(entry.entry_id)
     assert [item.unique_id for item in entry.get_subentries_of_type("line")] == ["0:11"]
     assert [item.unique_id for item in entry.get_subentries_of_type("stop")] == ["B"]
-    assert entry.options == {"persons": ["person.ania"], "live_interval": 30}
+    assert entry.options == {"persons": ["person.ania"], "live_interval": 30, "delay_threshold": 3}
     assert hass.states.get("sensor.fake_nearest_stop_ania") is not None
 
 
@@ -252,7 +256,9 @@ async def test_options_with_no_schedule(hass: HomeAssistant, hub: FakeHub) -> No
 
 async def test_same_persons_still_reload(hass: HomeAssistant, hub: FakeHub) -> None:
     entry = await _setup(
-        hass, line_subentry(), options={"persons": ["person.ania"], "live_interval": 30}
+        hass,
+        line_subentry(),
+        options={"persons": ["person.ania"], "live_interval": 30, "delay_threshold": 3},
     )
     with patch.object(hass.config_entries, "async_schedule_reload") as reload:
         await _options(hass, entry, {"bus": ["3:11"]}, [])

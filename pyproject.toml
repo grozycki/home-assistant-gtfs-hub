@@ -66,6 +66,7 @@ ignore_missing_imports = true
 module = [
     "conftest",
     "test_config_flow",
+    "test_delay_events",
     "test_entities",
     "test_vehicle_lifecycle",
     "test_vehicles",

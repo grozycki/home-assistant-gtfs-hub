@@ -34,10 +34,11 @@
       },
       "persons": {
         "title": "Dodatkowe ustawienia",
-        "description": "Każda wybrana osoba dostanie sensor z najbliższym przystankiem Twoich linii. GZM aktualizuje pozycje pojazdów mniej więcej co 15 s, a opóźnienia co 40 s, więc czas krótszy niż 15 s nic nie daje.",
+        "description": "Każda wybrana osoba dostanie sensor z najbliższym przystankiem Twoich linii. GZM aktualizuje pozycje pojazdów mniej więcej co 15 s, a opóźnienia co 40 s, więc czas krótszy niż 15 s nic nie daje. Linia zgłasza zdarzenie, gdy kurs spóźnia się o próg opóźnienia lub więcej.",
         "data": {
           "persons": "Osoby",
-          "live_interval": "Częstotliwość odświeżania danych na żywo"
+          "live_interval": "Częstotliwość odświeżania danych na żywo",
+          "delay_threshold": "Próg opóźnienia"
         }
       }
     },
@@ -109,10 +110,11 @@
       },
       "persons": {
         "title": "Dodatkowe ustawienia",
-        "description": "Każda wybrana osoba dostanie sensor z najbliższym przystankiem Twoich linii. GZM aktualizuje pozycje pojazdów mniej więcej co 15 s, a opóźnienia co 40 s, więc czas krótszy niż 15 s nic nie daje.",
+        "description": "Każda wybrana osoba dostanie sensor z najbliższym przystankiem Twoich linii. GZM aktualizuje pozycje pojazdów mniej więcej co 15 s, a opóźnienia co 40 s, więc czas krótszy niż 15 s nic nie daje. Linia zgłasza zdarzenie, gdy kurs spóźnia się o próg opóźnienia lub więcej.",
         "data": {
           "persons": "Osoby",
-          "live_interval": "Częstotliwość odświeżania danych na żywo"
+          "live_interval": "Częstotliwość odświeżania danych na żywo",
+          "delay_threshold": "Próg opóźnienia"
         }
       }
     },
@@ -143,6 +145,20 @@
     "binary_sensor": {
       "live_data": {
         "name": "Dane na żywo"
+      }
+    },
+    "event": {
+      "delays": {
+        "name": "Opóźnienia",
+        "state_attributes": {
+          "event_type": {
+            "state": {
+              "delayed": "Opóźniony",
+              "recovered": "Znów na czas",
+              "cancelled": "Odwołany"
+            }
+          }
+        }
       }
     }
   },

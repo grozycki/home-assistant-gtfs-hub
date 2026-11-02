@@ -244,10 +244,10 @@ async def test_cache_removed_with_the_entry(hass: HomeAssistant, hub: FakeHub) -
     assert not await hass.async_add_executor_job(path.exists)
 
 
-async def test_no_realtime_without_pins_or_persons(hass: HomeAssistant, hub: FakeHub) -> None:
+async def test_no_realtime_without_lines_pins_or_persons(hass: HomeAssistant, hub: FakeHub) -> None:
     hub.realtime = RealtimeData(NOW, {"t1": TripUpdate("t1", None, False, ())})
     with patch.object(hub, "async_fetch_realtime") as fetch:
-        await setup(hass, line_subentry())
+        await setup(hass)
     fetch.assert_not_called()
     assert get_state(hass, LIVE).state == STATE_OFF
 
@@ -273,9 +273,10 @@ async def test_removed_person_loses_the_sensor(hass: HomeAssistant, hub: FakeHub
 async def test_action_fetches_realtime_when_nothing_polls(
     hass: HomeAssistant, hub: FakeHub
 ) -> None:
-    hub.realtime = RealtimeData(NOW, {"t1": TripUpdate("t1", None, False, ())})
+    # The coordinator's own fetch failed, so the action has to fetch.
     entry = await setup(hass, line_subentry())
-    with patch.object(hub, "async_fetch_realtime", return_value=hub.realtime) as fetch:
+    live = RealtimeData(NOW, {"t1": TripUpdate("t1", None, False, ())})
+    with patch.object(hub, "async_fetch_realtime", return_value=live) as fetch:
         await hass.services.async_call(
             DOMAIN,
             "get_departures",

@@ -47,6 +47,7 @@ from gtfs_hub import (
 
 from . import async_build_provider, database_path
 from .const import (
+    CONF_DELAY_THRESHOLD,
     CONF_LIVE_INTERVAL,
     CONF_PERSONS,
     CONF_PROVIDER,
@@ -56,10 +57,13 @@ from .const import (
     CONF_STOP_KEY,
     CONF_STOPS,
     CONF_TRIP_UPDATES_URL,
+    DEFAULT_DELAY_THRESHOLD,
     DEPARTURES_INTERVAL,
     DOMAIN,
     GENERIC_PROVIDER,
+    MAX_DELAY_THRESHOLD,
     MAX_LIVE_INTERVAL,
+    MIN_DELAY_THRESHOLD,
     MIN_LIVE_INTERVAL,
     SUBENTRY_LINE,
     SUBENTRY_STOP,
@@ -140,6 +144,10 @@ class _SelectionFlow(ConfigEntryBaseFlow):
     def _current_interval(self) -> int:
         """Return the live update interval to fill in."""
         return int(DEPARTURES_INTERVAL.total_seconds())
+
+    def _current_threshold(self) -> int:
+        """Return the delay threshold to fill in, in minutes."""
+        return DEFAULT_DELAY_THRESHOLD
 
     @abstractmethod
     async def _async_finish(self, settings: dict[str, Any]) -> ConfigFlowResult:
@@ -258,10 +266,12 @@ class _SelectionFlow(ConfigEntryBaseFlow):
         """Choose persons for the nearest stop sensor."""
         if user_input is not None:
             interval = user_input.get(CONF_LIVE_INTERVAL, self._current_interval())
+            threshold = user_input.get(CONF_DELAY_THRESHOLD, self._current_threshold())
             return await self._async_finish(
                 {
                     CONF_PERSONS: user_input.get(CONF_PERSONS, []),
                     CONF_LIVE_INTERVAL: int(interval),
+                    CONF_DELAY_THRESHOLD: int(threshold),
                 }
             )
         schema = vol.Schema(
@@ -278,6 +288,18 @@ class _SelectionFlow(ConfigEntryBaseFlow):
                         step=5,
                         mode=NumberSelectorMode.BOX,
                         unit_of_measurement="s",
+                    )
+                ),
+                vol.Optional(
+                    CONF_DELAY_THRESHOLD,
+                    description={"suggested_value": self._current_threshold()},
+                ): NumberSelector(
+                    NumberSelectorConfig(
+                        min=MIN_DELAY_THRESHOLD,
+                        max=MAX_DELAY_THRESHOLD,
+                        step=1,
+                        mode=NumberSelectorMode.BOX,
+                        unit_of_measurement="min",
                     )
                 ),
             }
@@ -476,6 +498,10 @@ class GtfsHubOptionsFlow(_SelectionFlow, OptionsFlow):
     @override
     def _current_interval(self) -> int:
         return int(self._entry.options.get(CONF_LIVE_INTERVAL, super()._current_interval()))
+
+    @override
+    def _current_threshold(self) -> int:
+        return int(self._entry.options.get(CONF_DELAY_THRESHOLD, super()._current_threshold()))
 
     async def async_step_init(self, user_input: dict[str, Any] | None = None) -> ConfigFlowResult:
         """Read the lines, then show them."""

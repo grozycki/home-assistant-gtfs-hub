@@ -227,3 +227,25 @@ async def test_sightings_are_deleted_with_the_entry(
     await hass.config_entries.async_remove(entry.entry_id)
     await hass.async_block_till_done()
     assert sightings_key(entry) not in hass_storage
+
+
+async def test_unreadable_sightings_count_as_seen_at_startup(
+    hass: HomeAssistant,
+    hub: FakeHub,
+    freezer: FrozenDateTimeFactory,
+    hass_storage: dict[str, object],
+) -> None:
+    entry = make()
+    entry.add_to_hass(hass)
+    unique_id = stored_tracker(hass, entry)
+    hass_storage[sightings_key(entry)] = {
+        "version": 1,
+        "minor_version": 1,
+        "key": sightings_key(entry),
+        "data": {unique_id: "2026-10-01T00:00:00+00:00"},
+    }
+    hub.vehicles = [other()]
+    await hass.config_entries.async_setup(entry.entry_id)
+    await hass.async_block_till_done()
+    await advance(hass, freezer, RETENTION - timedelta(hours=1))
+    assert TRACKER in tracked(hass)

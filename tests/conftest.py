@@ -7,7 +7,9 @@ from unittest.mock import patch
 
 import pytest
 from custom_components.gtfs_hub.const import DOMAIN
+from gtfs_hub.realtime import TripUpdate
 from homeassistant.config_entries import ConfigSubentryData
+from homeassistant.util import dt as dt_util
 from pytest_homeassistant_custom_component.common import MockConfigEntry
 
 from gtfs_hub import (
@@ -23,6 +25,7 @@ from gtfs_hub import (
     Stop,
     StopChoice,
     StopKey,
+    TripDelay,
     TripId,
     Vehicle,
     VehicleKey,
@@ -85,6 +88,9 @@ class FakeHub:
     departures: dict[StopKey, list[Departure]] = field(default_factory=dict)
     synced: list[list[LineKey]] = field(default_factory=list)
     vehicles: list[Vehicle] = field(default_factory=list)
+    # When set, each fetch returns a fresh message, and these are its trips.
+    trip_delays: list[TripDelay] | None = None
+    realtime_fetches: int = 0
     provider: FakeProvider = field(default_factory=lambda: FakeProvider())
 
     async def async_sync(self, selection: Collection[LineKey]) -> None:
@@ -134,9 +140,19 @@ class FakeHub:
         return [stop for stop in stops if only is None or stop.key in only][:limit]
 
     async def async_fetch_realtime(self) -> RealtimeData | None:
+        self.realtime_fetches += 1
         if self.realtime_error:
             raise self.realtime_error
+        if self.trip_delays is not None:
+            trips: dict[str, TripUpdate] = {
+                item.trip_id: TripUpdate(item.trip_id, None, False, ()) for item in self.trip_delays
+            }
+            idle = {"idle": TripUpdate("idle", None, False, ())}
+            return RealtimeData(dt_util.utcnow(), trips or idle)
         return self.realtime
+
+    async def async_trip_delays(self, realtime: RealtimeData) -> list[TripDelay]:
+        return list(self.trip_delays or [])
 
     async def async_departures(self, key: StopKey, **kwargs: object) -> list[Departure]:
         return self.departures.get(key, [])

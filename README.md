@@ -36,6 +36,35 @@ A broader pattern such as `device_tracker.*` would also drop the history of phon
 
 A vehicle marker shows the line, a picture by mode and size, and an arrow for its direction, worked out from movement. A white ring means a low floor. Pictures come from the vehicle planned for the trip, so a replacement may differ.
 
+## Delay events
+
+Each tracked line has a Delays event entity on the line's device, named after the line, such as `event.11_czeladz_wojkowicka_petla_piotrowice_petla_delays`. The examples below shorten it to `event.bus_11_delays`. It fires once per trip:
+
+- `delayed` when the trip runs late by the delay threshold or more, 3 minutes by default, on two live updates in a row;
+- `recovered` when a delayed trip is back to at most 2 minutes under the threshold, also on two updates in a row;
+- `cancelled` when the feed cancels the trip.
+
+The event carries `line`, `headsign`, `trip_id`, `start_date` and `delay` in seconds. Nothing fires on the first update after Home Assistant starts, or while live data is missing. A trip that leaves the feed fires nothing, so an automation should not wait for `recovered`. Change the threshold in the integration's options.
+
+```yaml
+triggers:
+  - trigger: state
+    entity_id: event.bus_11_delays
+    not_from: unavailable
+conditions:
+  - condition: state
+    entity_id: event.bus_11_delays
+    attribute: event_type
+    state: delayed
+actions:
+  - action: notify.notify
+    data:
+      message: >-
+        Line {{ state_attr('event.bus_11_delays', 'line') }} to
+        {{ state_attr('event.bus_11_delays', 'headsign') }} is
+        {{ (state_attr('event.bus_11_delays', 'delay') / 60) | round }} min late
+```
+
 ## Setup
 
 1. Add the integration and choose a source.

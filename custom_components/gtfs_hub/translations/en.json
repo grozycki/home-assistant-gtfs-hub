@@ -34,10 +34,11 @@
       },
       "persons": {
         "title": "Additional settings",
-        "description": "Each chosen person gets a sensor showing the closest stop of your lines. GZM moves vehicles about every 15 s and changes delays about every 40 s, so an interval below 15 s gives nothing.",
+        "description": "Each chosen person gets a sensor showing the closest stop of your lines. GZM moves vehicles about every 15 s and changes delays about every 40 s, so an interval below 15 s gives nothing. A line fires a delay event when a trip runs late by the delay threshold or more.",
         "data": {
           "persons": "Persons",
-          "live_interval": "Live update interval"
+          "live_interval": "Live update interval",
+          "delay_threshold": "Delay threshold"
         }
       }
     },
@@ -109,10 +110,11 @@
       },
       "persons": {
         "title": "Additional settings",
-        "description": "Each chosen person gets a sensor showing the closest stop of your lines. GZM moves vehicles about every 15 s and changes delays about every 40 s, so an interval below 15 s gives nothing.",
+        "description": "Each chosen person gets a sensor showing the closest stop of your lines. GZM moves vehicles about every 15 s and changes delays about every 40 s, so an interval below 15 s gives nothing. A line fires a delay event when a trip runs late by the delay threshold or more.",
         "data": {
           "persons": "Persons",
-          "live_interval": "Live update interval"
+          "live_interval": "Live update interval",
+          "delay_threshold": "Delay threshold"
         }
       }
     },
@@ -143,6 +145,20 @@
     "binary_sensor": {
       "live_data": {
         "name": "Live data"
+      }
+    },
+    "event": {
+      "delays": {
+        "name": "Delays",
+        "state_attributes": {
+          "event_type": {
+            "state": {
+              "delayed": "Delayed",
+              "recovered": "Back on time",
+              "cancelled": "Cancelled"
+            }
+          }
+        }
       }
     }
   },

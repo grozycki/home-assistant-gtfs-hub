@@ -25,11 +25,13 @@ from gtfs_hub import (
 )
 
 from .const import (
+    CONF_DELAY_THRESHOLD,
     CONF_LIVE_INTERVAL,
     CONF_PERSONS,
     CONF_ROUTE_TYPE,
     CONF_SHORT_NAME,
     CONF_STOP_KEY,
+    DEFAULT_DELAY_THRESHOLD,
     DEMO_VEHICLES_VARIABLE,
     DEPARTURES_INTERVAL,
     DOMAIN,
@@ -39,6 +41,7 @@ from .const import (
     SUBENTRY_LINE,
     SUBENTRY_STOP,
 )
+from .delays import DelayEvent, DelayRules
 from .nearest import bearing, distance, find_nearest
 
 if TYPE_CHECKING:
@@ -87,6 +90,9 @@ class DeparturesData:
     nearest: dict[str, NearestStop | None] = field(default_factory=dict)
     live: bool = False
     vehicles: dict[str, TrackedVehicle] = field(default_factory=dict)
+    delay_events: tuple[DelayEvent, ...] = ()
+    # Counts ticks, so a listener called twice with one tick fires its events once.
+    tick: int = 0
 
 
 class ScheduleCoordinator(DataUpdateCoordinator[ScheduleData]):
@@ -170,6 +176,9 @@ class DeparturesCoordinator(DataUpdateCoordinator[DeparturesData]):
         )
         self._anchors: dict[str, tuple[float, float, float | None]] = {}
         self._vehicles_seen: datetime | None = None
+        threshold = entry.options.get(CONF_DELAY_THRESHOLD, DEFAULT_DELAY_THRESHOLD)
+        self._rules = DelayRules(int(threshold) * 60)
+        self._tick = 0
 
     def _pinned(self) -> list[StopKey]:
         return [
@@ -250,15 +259,17 @@ class DeparturesCoordinator(DataUpdateCoordinator[DeparturesData]):
         wanted = set(self._pinned())
         wanted.update(item.stop.key for item in nearest.values() if item is not None)
         vehicles = await self._async_vehicles()
-        if not wanted:
+        self._tick += 1
+        if not wanted and not self.schedule.selection():
             self.realtime = None
-            return DeparturesData(nearest=nearest, vehicles=vehicles)
+            return DeparturesData(nearest=nearest, vehicles=vehicles, tick=self._tick)
         await self._async_fetch_realtime()
         realtime = self.realtime
-        live = (
-            realtime is not None
-            and bool(realtime.trips)
-            and not realtime.is_stale(dt_util.utcnow(), _MAX_AGE)
+        now = dt_util.utcnow()
+        fresh = (
+            realtime
+            if realtime is not None and realtime.trips and not realtime.is_stale(now, _MAX_AGE)
+            else None
         )
         departures = {}
         try:
@@ -266,9 +277,13 @@ class DeparturesCoordinator(DataUpdateCoordinator[DeparturesData]):
                 departures[key] = await self.hub.async_departures(
                     key, realtime=realtime, limit=LIST_LIMIT, max_age=_MAX_AGE
                 )
+            trips = await self.hub.async_trip_delays(fresh) if fresh is not None else None
         except GtfsNoDataError as err:
             raise UpdateFailed(f"No schedule available: {err}") from err
-        return DeparturesData(departures, nearest, live, vehicles)
+        # Missing or stale live data pauses the rules rather than reading as on time.
+        events = tuple(self._rules.update(trips, now))
+        live = fresh is not None
+        return DeparturesData(departures, nearest, live, vehicles, events, self._tick)
 
 
 @dataclass(slots=True)

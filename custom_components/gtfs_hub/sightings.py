@@ -49,10 +49,17 @@ class Sightings:
 
     async def async_load(self, trackers: Iterable[str]) -> None:
         """Read stored sightings, counting a tracker with none as seen now."""
-        stored = await self._store.async_load()
-        if stored is not None:
-            self._clock = stored["clock"]
-        seen = stored["seen"] if stored is not None else {}
+        stored: object = await self._store.async_load()
+        seen: dict[str, float] = {}
+        # A file of another shape is read as none, which only delays removals.
+        if isinstance(stored, dict) and isinstance(clock := stored.get("clock"), int | float):
+            self._clock = float(clock)
+            if isinstance(found := stored.get("seen"), dict):
+                seen = {
+                    str(key): float(value)
+                    for key, value in found.items()
+                    if isinstance(value, int | float)
+                }
         for unique_id in trackers:
             self._seen[unique_id] = seen.get(unique_id, self._clock)
 
