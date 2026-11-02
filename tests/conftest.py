@@ -36,6 +36,7 @@ if TYPE_CHECKING:
 
 LINE_11 = LineKey(3, "11")
 TRAM_11 = LineKey(0, "11")
+LINE_11_URL = "https://example.test/lines/11"
 STOP_A = Stop(StopKey("A"), "Alfa", "C-A", 50.0, 19.0, "https://example.test/a")
 STOP_B = Stop(StopKey("B"), "Beta", None, 50.1, 19.1)
 NOW = datetime(2026, 11, 2, 12, 0, tzinfo=UTC)
@@ -108,7 +109,7 @@ class FakeHub:
         if not self.ready:
             raise GtfsNoDataError("empty")
         return [
-            Line(LINE_11, "Long", "A", None, None),
+            Line(LINE_11, "Long", "A", None, None, LINE_11_URL),
             Line(TRAM_11, None, "A", None, None),
             Line(LineKey(1400, "F"), "Funicular", "A", None, None),
         ]
@@ -198,5 +199,16 @@ def get_state(hass: HomeAssistant, entity_id: str) -> State:
     return state
 
 
-def vehicle(trip: str = "t1", latitude: float = 50.0, longitude: float = 19.0) -> Vehicle:
-    return Vehicle(VehicleKey("v1"), LINE_11, TripId(trip), "Terminus", latitude, longitude, NOW)
+def vehicle(
+    trip: str = "t1", latitude: float = 50.0, longitude: float = 19.0, label: str | None = None
+) -> Vehicle:
+    return Vehicle(
+        VehicleKey("v1"),
+        LINE_11,
+        TripId(trip),
+        "Terminus",
+        latitude,
+        longitude,
+        NOW,
+        label=label,
+    )

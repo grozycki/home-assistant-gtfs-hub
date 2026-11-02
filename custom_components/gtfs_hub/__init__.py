@@ -7,23 +7,28 @@ from typing import TYPE_CHECKING
 from homeassistant.core import HomeAssistant, callback
 from homeassistant.exceptions import ConfigEntryError
 from homeassistant.helpers import config_validation as cv
+from homeassistant.helpers import device_registry as dr
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
 
 from gtfs_hub import (
     GenericProvider,
     GtfsError,
     GtfsHub,
+    LineKey,
     Provider,
     async_create_provider,
 )
 
 from .const import (
     CONF_PROVIDER,
+    CONF_ROUTE_TYPE,
     CONF_SCHEDULE_URL,
+    CONF_SHORT_NAME,
     CONF_TRIP_UPDATES_URL,
     DOMAIN,
     GENERIC_PROVIDER,
     PLATFORMS,
+    SUBENTRY_LINE,
 )
 from .coordinator import (
     DeparturesCoordinator,
@@ -33,6 +38,7 @@ from .coordinator import (
 )
 from .marker import MarkerView, StopMarkerView
 from .services import async_setup_services
+from .sightings import async_remove_sightings
 
 if TYPE_CHECKING:
     from collections.abc import Mapping
@@ -79,6 +85,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: GtfsHubConfigEntry) -> b
 
     @callback
     def _schedule_changed() -> None:
+        _update_line_devices(hass, entry)
         _ = entry.async_create_background_task(
             hass, departures.async_request_refresh(), f"{DOMAIN}_departures_refresh"
         )
@@ -89,6 +96,23 @@ async def async_setup_entry(hass: HomeAssistant, entry: GtfsHubConfigEntry) -> b
     entry.async_on_unload(entry.add_update_listener(_async_reload))
     _ = entry.async_create_background_task(hass, schedule.async_refresh(), f"{DOMAIN}_first_sync")
     return True
+
+
+@callback
+def _update_line_devices(hass: HomeAssistant, entry: GtfsHubConfigEntry) -> None:
+    """Keep a device per tracked line, linked to its timetable when the source has one."""
+    registry = dr.async_get(hass)
+    lines = entry.runtime_data.schedule.data.lines
+    for subentry in entry.get_subentries_of_type(SUBENTRY_LINE):
+        line = lines.get(LineKey(subentry.data[CONF_ROUTE_TYPE], subentry.data[CONF_SHORT_NAME]))
+        registry.async_get_or_create(
+            config_entry_id=entry.entry_id,
+            config_subentry_id=subentry.subentry_id,
+            identifiers={(DOMAIN, subentry.subentry_id)},
+            name=subentry.title,
+            entry_type=dr.DeviceEntryType.SERVICE,
+            configuration_url=line.url if line is not None else None,
+        )
 
 
 async def _async_reload(hass: HomeAssistant, entry: GtfsHubConfigEntry) -> None:
@@ -106,3 +130,4 @@ async def async_remove_entry(hass: HomeAssistant, entry: GtfsHubConfigEntry) -> 
     assert entry.unique_id is not None
     path = database_path(hass, entry.unique_id)
     await hass.async_add_executor_job(lambda: path.unlink(missing_ok=True))
+    await async_remove_sightings(hass, entry.entry_id)

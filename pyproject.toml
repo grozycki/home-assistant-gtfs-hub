@@ -63,5 +63,11 @@ ignore_missing_imports = true
 
 # The test plugin ships no types, so its classes read as Any here.
 [[tool.mypy.overrides]]
-module = ["conftest", "test_config_flow", "test_entities", "test_vehicles"]
+module = [
+    "conftest",
+    "test_config_flow",
+    "test_entities",
+    "test_vehicle_lifecycle",
+    "test_vehicles",
+]
 disallow_any_unimported = false

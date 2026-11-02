@@ -4,17 +4,21 @@ from typing import TYPE_CHECKING, override
 
 from homeassistant.components.device_tracker.entity import TrackerEntity
 from homeassistant.core import HomeAssistant, callback
+from homeassistant.helpers import entity_registry as er
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
+from homeassistant.util import dt as dt_util
 
 from gtfs_hub import LineKey
 
-from .const import CONF_ROUTE_TYPE, CONF_SHORT_NAME, SUBENTRY_LINE
+from .const import CONF_ROUTE_TYPE, CONF_SHORT_NAME, DOMAIN, SUBENTRY_LINE
 from .coordinator import DeparturesCoordinator, GtfsHubConfigEntry, TrackedVehicle
 from .marker import form_of, marker_url
+from .sightings import Sightings
 
 if TYPE_CHECKING:
     from collections.abc import Mapping
 
+    from homeassistant.config_entries import ConfigSubentry
     from homeassistant.helpers.entity_platform import AddConfigEntryEntitiesCallback
 
 
@@ -23,37 +27,61 @@ async def async_setup_entry(
     entry: GtfsHubConfigEntry,
     async_add_entities: AddConfigEntryEntitiesCallback,
 ) -> None:
-    """Add a tracker for each vehicle as it appears."""
+    """Add a tracker for each vehicle as it appears, and remove those long gone."""
     coordinator = entry.runtime_data.departures
     if not coordinator.tracks_vehicles:
         return
     attribution = entry.runtime_data.provider.attribution
     lines = {
-        LineKey(item.data[CONF_ROUTE_TYPE], item.data[CONF_SHORT_NAME]): item.subentry_id
+        LineKey(item.data[CONF_ROUTE_TYPE], item.data[CONF_SHORT_NAME]): item
         for item in entry.get_subentries_of_type(SUBENTRY_LINE)
     }
-    # A vehicle that moves to another tracked line gets a tracker under that line too.
-    known: set[tuple[str, str]] = set()
+    registry = er.async_get(hass)
+    sightings = Sightings(hass, entry.entry_id)
+    await sightings.async_load(
+        item.unique_id
+        for item in er.async_entries_for_config_entry(registry, entry.entry_id)
+        if item.domain == "device_tracker"
+    )
+    # Unique IDs of trackers added since setup. A key in the data already holds its line.
+    known: set[str] = set()
 
     @callback
-    def add_new() -> None:
-        for key, tracked in coordinator.data.vehicles.items():
-            subentry_id = lines.get(tracked.vehicle.line)
-            if subentry_id is None or (subentry_id, key) in known:
+    def update() -> None:
+        now = dt_util.utcnow()
+        vehicles = coordinator.data.vehicles
+        sightings.tick(now, live=bool(vehicles))
+        for key, tracked in vehicles.items():
+            line = lines.get(tracked.vehicle.line)
+            if line is None:
                 continue
-            known.add((subentry_id, key))
+            unique_id = tracker_unique_id(line, tracked)
+            sightings.saw(unique_id)
+            if unique_id in known:
+                continue
+            known.add(unique_id)
             async_add_entities(
-                [VehicleTracker(coordinator, attribution, key, subentry_id, tracked)],
-                config_subentry_id=subentry_id,
+                [VehicleTracker(coordinator, attribution, key, line, tracked)],
+                config_subentry_id=line.subentry_id,
             )
+        for unique_id in sightings.sweep(now):
+            known.discard(unique_id)
+            if entity_id := registry.async_get_entity_id("device_tracker", DOMAIN, unique_id):
+                registry.async_remove(entity_id)
 
-    add_new()
-    entry.async_on_unload(coordinator.async_add_listener(add_new))
+    update()
+    entry.async_on_unload(coordinator.async_add_listener(update))
+
+
+def tracker_unique_id(line: ConfigSubentry, tracked: TrackedVehicle) -> str:
+    """Return the identity of one vehicle on one tracked line."""
+    return f"{line.subentry_id}_{tracked.vehicle.key}"
 
 
 class VehicleTracker(CoordinatorEntity[DeparturesCoordinator], TrackerEntity):
-    """One vehicle. Its identity holds no trip, so a new trip keeps the entity."""
+    """One vehicle on one line. Its identity holds no trip, so a new trip keeps the entity."""
 
+    _attr_has_entity_name = True
     _unrecorded_attributes = frozenset({"trip_id", "derived_bearing", "headsign"})
 
     def __init__(
@@ -61,26 +89,25 @@ class VehicleTracker(CoordinatorEntity[DeparturesCoordinator], TrackerEntity):
         coordinator: DeparturesCoordinator,
         attribution: str | None,
         key: str,
-        subentry_id: str,
+        line: ConfigSubentry,
         tracked: TrackedVehicle,
     ) -> None:
         super().__init__(coordinator)
         self._key = key
-        self._line = tracked.vehicle.line
         self._last = tracked
         self._was_available = True
         # With no zones given, a vehicle passing the house is not reported as home.
         self._attr_in_zones = []
-        line = tracked.vehicle.line
+        vehicle = tracked.vehicle
         self._attr_attribution = attribution
-        self._attr_unique_id = f"{subentry_id}_{tracked.vehicle.key}"
-        self._attr_name = f"{line.short_name} {tracked.vehicle.key}"
+        self._attr_unique_id = tracker_unique_id(line, tracked)
+        # Home Assistant gives trackers no device, so the name carries the line.
+        number = f"#{vehicle.label}" if vehicle.label else vehicle.key
+        self._attr_name = f"{vehicle.line.short_name} {number}"
 
     @property
     def _tracked(self) -> TrackedVehicle | None:
-        """Return the vehicle while it serves this tracker's line."""
-        tracked = self.coordinator.data.vehicles.get(self._key)
-        return tracked if tracked is not None and tracked.vehicle.line == self._line else None
+        return self.coordinator.data.vehicles.get(self._key)
 
     @property
     @override
@@ -123,6 +150,7 @@ class VehicleTracker(CoordinatorEntity[DeparturesCoordinator], TrackerEntity):
             "length": planned.length if planned else None,
             "low_floor": planned.low_floor if planned else None,
             "line": vehicle.line.short_name,
+            "fleet_number": vehicle.label,
             "headsign": vehicle.headsign,
             "trip_id": vehicle.trip_id,
             "derived_bearing": self._last.derived_bearing,

@@ -15,6 +15,7 @@ from gtfs_hub import (
     GtfsError,
     GtfsHub,
     GtfsNoDataError,
+    Line,
     LineKey,
     Provider,
     RealtimeData,
@@ -56,9 +57,10 @@ def vehicle_id(vehicle: Vehicle) -> str:
 
 @dataclass(frozen=True, slots=True)
 class ScheduleData:
-    """The stops of the selected lines."""
+    """The selected lines and their stops."""
 
     stops: dict[StopKey, Stop]
+    lines: dict[LineKey, Line] = field(default_factory=dict)
 
 
 @dataclass(frozen=True, slots=True)
@@ -128,9 +130,10 @@ class ScheduleCoordinator(DataUpdateCoordinator[ScheduleData]):
             for line in selection:
                 for stop in await self.hub.async_stops_of_line(line):
                     stops[stop.key] = stop
+            lines = {line.key: line for line in await self.hub.async_list_lines()}
         except GtfsNoDataError as err:
             raise UpdateFailed(f"No schedule available: {err}") from err
-        return ScheduleData(stops)
+        return ScheduleData(stops, {key: lines[key] for key in selection if key in lines})
 
 
 class DeparturesCoordinator(DataUpdateCoordinator[DeparturesData]):
