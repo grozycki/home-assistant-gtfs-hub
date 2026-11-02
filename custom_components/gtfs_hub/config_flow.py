@@ -4,6 +4,7 @@ import logging
 from abc import abstractmethod
 from types import MappingProxyType
 from typing import TYPE_CHECKING, Any, override
+from urllib.parse import urlparse
 
 import probatio as vol
 from homeassistant.config_entries import (
@@ -72,7 +73,7 @@ from .marker import mode_of
 
 if TYPE_CHECKING:
     import asyncio
-    from collections.abc import Awaitable, Callable, Coroutine, Sequence
+    from collections.abc import Awaitable, Callable, Coroutine, Mapping, Sequence
     from pathlib import Path
 
     from .coordinator import GtfsHubConfigEntry
@@ -88,7 +89,20 @@ def _line_value(key: LineKey) -> str:
 
 def _line_label(line: Line) -> str:
     name = line.key.short_name
-    return f"{name}: {line.long_name}" if line.long_name else name
+    long_name = (line.long_name or "").strip()
+    # Some sources repeat the number as the long name, which says nothing more.
+    if not long_name or long_name.casefold() == name.strip().casefold():
+        return name
+    return f"{name}: {long_name}"
+
+
+def _entry_title(provider: Provider, data: Mapping[str, str]) -> str:
+    """Return the provider's name, with the host of a generic source to tell sources apart."""
+    if data.get(CONF_PROVIDER) == GENERIC_PROVIDER:
+        host = urlparse(data.get(CONF_SCHEDULE_URL, "")).hostname
+        if host:
+            return f"{provider.name} {host}"
+    return provider.name
 
 
 def _stop_title(choice: StopChoice) -> str:
@@ -434,7 +448,7 @@ class GtfsHubConfigFlow(_SelectionFlow, ConfigFlow, domain=DOMAIN):
         ]
         self._created = True
         return self.async_create_entry(
-            title=self._provider.name,
+            title=_entry_title(self._provider, self._data),
             data=self._data,
             options=settings,
             subentries=subentries,

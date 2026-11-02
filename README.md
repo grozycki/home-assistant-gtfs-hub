@@ -64,27 +64,55 @@ actions:
         {{ (state_attr('event.bus_11_delays', 'delay') / 60) | round }} min late
 ```
 
+## Installation
+
+Not possible yet: see Release status.
+
+Once released, through the Marketplace (Home Assistant 2026.11 or later): open Settings, Marketplace, find GTFS Hub, install it and restart Home Assistant. With HACS on an older version, add this repository as a custom repository of type Integration. By hand: copy `custom_components/gtfs_hub` into your `config/custom_components` folder and restart.
+
 ## Setup
 
-1. Add the integration and choose a source.
+1. Add the integration and choose a source: an installed provider such as GZM, or any GTFS feed by URL, with an optional trip updates URL.
 2. Choose your lines. Each mode has its own multi-select.
 3. Choose stops of those lines. Each shows its direction, lines and code.
-4. Optionally choose persons for the nearest stop sensor.
-5. Optionally change the live update interval, from 15 to 600 s. The default is 30 s.
+4. Optionally choose persons for the nearest stop sensor, change the live update interval, from 15 to 600 s with 30 s by default, and the delay threshold, from 1 to 60 minutes with 3 by default.
 
-The entry's options repeat these steps, so you can change the selection at any time.
+The entry's options repeat these steps, so you can change the selection at any time. A source given by URL is named after its host, such as `GTFS gtfs.ztp.krakow.pl`.
 
-## Status
+## Removal
 
-Not installable yet: the `gtfs-hub` packages are not on PyPI. Vehicles on the map and delay events come in later stages.
+Delete the entry under Settings, Devices & services, GTFS Hub. Its timetable cache and vehicle sightings are deleted with it. Then remove the integration in the Marketplace, or delete `custom_components/gtfs_hub`, and restart.
+
+## Troubleshooting
+
+- **No departures:** the stop shows departures of tracked lines only. Check the line is selected, and that the source's timetable covers today.
+- **Live data is off:** the `Live data` sensor turns off when trip updates are missing or older than 5 minutes. GZM's feeds are empty at times in the evening and at night.
+- **No vehicles on the map:** vehicles appear only for providers that declare a stable vehicle identity, such as GZM, and only on tracked lines.
+- **Setup is slow:** the first download of a large source takes a minute or more.
+- **Logs:** add `custom_components.gtfs_hub: debug` and `gtfs_hub: debug` under `logger: logs:` in `configuration.yaml`.
+
+## Known limitations
+
+- Vehicle types and pictures come from the vehicle planned for the trip; the one that comes may differ.
+- Delay events need a feed that sends delays; a feed with stop times only gives departures but no events.
+- Sources given by URL get no vehicles on the map, as their vehicle IDs are not proven stable.
+- Lines served by frequencies rather than a timetable are not supported.
+
+## Release status
+
+Not released. What blocks it:
+
+- The `gtfs-hub` and `gtfs-hub-gzm` packages are not on PyPI, so Home Assistant cannot install the requirements.
+- The repository is private, with no topics and no GitHub release; the Marketplace and the HACS action read public repositories only.
 
 ## Verification
 
-On 2026-10-31, the Docker test instance on Home Assistant 2026.10.4 was set up through its interface against the live GZM feed: adding the source, line and stop, and choosing a person. Next departure, delay, live data and nearest stop sensors, and the `get_departures` action, returned sensible values.
+On 2026-11-02, the Docker test instance on Home Assistant 2026.10.4 was checked against live feeds: GZM with vehicles, names, line devices, delay events and the recorder issue; a source given by URL with Kraków's tram feed, with live delays at a pinned stop; the nearest stop of a person; and an abandoned setup, which left no files behind.
 
-- `uv run pytest --cov=custom_components/gtfs_hub`: 99% coverage, with `config_flow.py` at 100%.
+- `uv run pytest --cov=custom_components/gtfs_hub`: 99% coverage.
 - hassfest: passes, run with `docker run --rm --platform linux/amd64 -v "$PWD:/github/workspace:ro" ghcr.io/home-assistant/hassfest`.
-- HACS validation: not run, as it needs a GitHub token and a public repository.
+- HACS validation: not run, as it needs a public repository.
+- Marketplace: not tested, as the test instance runs 2026.10.4.
 
 ## Test instance
 

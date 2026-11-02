@@ -3,6 +3,7 @@ from typing import TYPE_CHECKING
 from unittest.mock import patch
 
 from custom_components.gtfs_hub import database_path
+from custom_components.gtfs_hub.config_flow import _entry_title, _line_label
 from custom_components.gtfs_hub.const import DOMAIN
 from homeassistant import config_entries
 from homeassistant.data_entry_flow import FlowResultType
@@ -11,7 +12,7 @@ from probatio import Schema
 from pytest_homeassistant_custom_component.common import MockConfigEntry
 
 from conftest import FakeHub, FakeProvider, line_subentry, make_entry, stop_subentry
-from gtfs_hub import GtfsConnectionError, GtfsError, GtfsFeedError, LineKey
+from gtfs_hub import GenericProvider, GtfsConnectionError, GtfsError, GtfsFeedError, Line, LineKey
 
 if TYPE_CHECKING:
     from collections.abc import Mapping
@@ -295,3 +296,21 @@ async def test_cancelled_options_keep_stored_lines(hass: HomeAssistant, hub: Fak
     assert result["step_id"] == "stops"
     assert LineKey(3, "11") in hub.synced[-1]
     flow.async_abort(result["flow_id"])
+
+
+def test_line_label_skips_a_repeated_number() -> None:
+    assert _line_label(Line(LineKey(900, "1"), " 1 ", None, None, None)) == "1"
+    assert _line_label(Line(LineKey(3, "11"), None, None, None, None)) == "11"
+    long_name = "CZELADŹ WOJKOWICKA PĘTLA - PIOTROWICE PĘTLA"
+    assert _line_label(Line(LineKey(3, "11"), long_name, None, None, None)) == f"11: {long_name}"
+
+
+def test_generic_entry_is_named_by_host() -> None:
+    generic = GenericProvider(["https://gtfs.ztp.krakow.pl/GTFS_KRK_T.zip"])
+    data = {"provider": "generic", "schedule_url": "https://gtfs.ztp.krakow.pl/GTFS_KRK_T.zip"}
+    assert _entry_title(generic, data) == "GTFS gtfs.ztp.krakow.pl"
+    assert _entry_title(generic, {"provider": "generic", "schedule_url": "x"}) == "GTFS"
+    # Only generic sources get the host.
+    assert (
+        _entry_title(generic, {"provider": "gzm", "schedule_url": data["schedule_url"]}) == "GTFS"
+    )

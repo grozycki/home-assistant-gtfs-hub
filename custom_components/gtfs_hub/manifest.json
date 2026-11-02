@@ -5,6 +5,9 @@
     "person",
     "recorder"
   ],
+  "categories": [
+    "vehicles_transport.public_transport"
+  ],
   "codeowners": [
     "@grozycki"
   ],
