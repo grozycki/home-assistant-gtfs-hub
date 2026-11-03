@@ -15,6 +15,8 @@ Stops show departures of tracked lines only. The `timetable_url` attribute links
 
 Delay reads unknown, not 0, when no prediction exists. Lists are left out of the recorder.
 
+Each listed departure carries `line_color` and `line_text_color`, for drawing its line as a badge: the provider's fleet colours when it has them, as GZM does, the source's line colours when they are readable, and white on the colour of the mode otherwise. Trackers state `route_type` and `provider`, and the shapes action names the provider, the line and its badge, so a card can find the vehicles of one line of one source.
+
 ## Map
 
 Pinned stops appear on the map with a stop sign marker. Vehicles of tracked lines appear when the provider declares a stable vehicle identity, as GZM does, or on a test instance with `GTFS_HUB_DEMO_VEHICLES=1`.

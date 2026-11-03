@@ -110,7 +110,10 @@ class VehicleTracker(CoordinatorEntity[DeparturesCoordinator], TrackerEntity):
     _attr_has_entity_name = True
     # Translates the vehicle_type attribute. The name is set here, as it must follow the trip.
     _attr_translation_key = "vehicle"
-    _unrecorded_attributes = frozenset({"trip_id", "derived_bearing", "headsign"})
+    # Route type and provider never change, so storing them would only repeat them.
+    _unrecorded_attributes = frozenset(
+        {"trip_id", "derived_bearing", "headsign", "route_type", "provider"}
+    )
 
     def __init__(
         self,
@@ -196,6 +199,8 @@ class VehicleTracker(CoordinatorEntity[DeparturesCoordinator], TrackerEntity):
             "length": planned.length if planned else None,
             "low_floor": planned.low_floor if planned else None,
             "line": vehicle.line.short_name,
+            "route_type": vehicle.line.route_type,
+            "provider": self.coordinator.hub.provider.key,
             "vehicle_type": vehicle_type(self._last),
             "fleet_number": vehicle.label,
             "headsign": vehicle.headsign,

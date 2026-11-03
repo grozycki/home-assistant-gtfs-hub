@@ -13,12 +13,16 @@ from .coordinator import DeparturesCoordinator
 if TYPE_CHECKING:
     from homeassistant.util.json import JsonValueType
 
+    from .badge import LineBadge
 
-def departure_as_dict(departure: Departure) -> dict[str, JsonValueType]:
-    """Return a departure in machine-readable, JSON-safe form."""
+
+def departure_as_dict(departure: Departure, badge: LineBadge) -> dict[str, JsonValueType]:
+    """Return a departure in machine-readable, JSON-safe form, with how to show its line."""
     return {
         "line": departure.line.short_name,
         "route_type": departure.line.route_type,
+        "line_color": badge.background,
+        "line_text_color": badge.text,
         "headsign": departure.headsign,
         "scheduled": departure.scheduled.isoformat(),
         "predicted": departure.predicted.isoformat() if departure.predicted else None,

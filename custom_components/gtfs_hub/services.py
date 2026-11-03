@@ -18,6 +18,7 @@ from homeassistant.util import dt as dt_util
 
 from gtfs_hub import GtfsError, LineKey, Shape, StopKey
 
+from .badge import as_colour
 from .const import (
     CONF_ENTRY_ID,
     CONF_LIMIT,
@@ -79,8 +80,7 @@ def _shape_as_dict(shape: Shape, color: str | None) -> dict[str, JsonValueType]:
         "id": shape.id,
         "headsign": shape.headsign,
         "direction_id": shape.direction_id,
-        # Some feeds write the hash that GTFS leaves out.
-        "color": None if color is None else f"#{color.removeprefix('#')}",
+        "color": as_colour(color),
         "points": points,
     }
 
@@ -114,7 +114,11 @@ def async_setup_services(hass: HomeAssistant) -> None:
             raise HomeAssistantError(
                 translation_domain=DOMAIN, translation_key="no_schedule"
             ) from err
-        return {"departures": [departure_as_dict(item) for item in departures]}
+        return {
+            "departures": [
+                departure_as_dict(item, runtime.departures.badge(item.line)) for item in departures
+            ]
+        }
 
     hass.services.async_register(
         DOMAIN,
@@ -136,9 +140,19 @@ def async_setup_services(hass: HomeAssistant) -> None:
             raise HomeAssistantError(
                 translation_domain=DOMAIN, translation_key="no_schedule"
             ) from err
-        line = entry.runtime_data.schedule.data.lines.get(key)
+        runtime = entry.runtime_data
+        line = runtime.schedule.data.lines.get(key)
         color = line.color if line is not None else None
-        return {"shapes": [_shape_as_dict(shape, color) for shape in shapes]}
+        badge = runtime.departures.badge(key)
+        # Enough for a card to find the trackers of this line of this source.
+        return {
+            "provider": runtime.hub.provider.key,
+            "line": key.short_name,
+            "route_type": key.route_type,
+            "line_color": badge.background,
+            "line_text_color": badge.text,
+            "shapes": [_shape_as_dict(shape, color) for shape in shapes],
+        }
 
     hass.services.async_register(
         DOMAIN,

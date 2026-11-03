@@ -26,6 +26,7 @@ from gtfs_hub import (
     locate,
 )
 
+from .badge import LineBadge, line_badge
 from .const import (
     CONF_DELAY_THRESHOLD,
     CONF_LIVE_INTERVAL,
@@ -193,6 +194,12 @@ class DeparturesCoordinator(DataUpdateCoordinator[DeparturesData]):
         threshold = entry.options.get(CONF_DELAY_THRESHOLD, DEFAULT_DELAY_THRESHOLD)
         self._rules = DelayRules(int(threshold) * 60)
         self._tick = 0
+
+    def badge(self, key: LineKey) -> LineBadge:
+        """Return how to show a line."""
+        return line_badge(
+            self.schedule.data.lines.get(key), key.route_type, self.hub.provider.livery
+        )
 
     def _pinned(self) -> list[StopKey]:
         return [

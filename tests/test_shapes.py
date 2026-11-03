@@ -144,15 +144,39 @@ async def call(hass: HomeAssistant, entry: MockConfigEntry, **data: object) -> o
 async def test_action_returns_the_paths(hass: HomeAssistant, hub: FakeHub) -> None:
     hub.shapes[LINE_11] = [EAST]
     entry = await setup(hass)
-    assert await call(hass, entry, line="11") == [
-        {
-            "id": "east",
-            "headsign": "Terminus",
-            "direction_id": 0,
-            "color": None,
-            "points": [[latitude, longitude] for latitude, longitude in EAST.points],
-        }
-    ]
+    response = await hass.services.async_call(
+        DOMAIN,
+        "get_line_shapes",
+        {"config_entry_id": entry.entry_id, "line": "11"},
+        blocking=True,
+        return_response=True,
+    )
+    assert response == {
+        "provider": "fake",
+        "line": "11",
+        "route_type": 3,
+        "line_color": "#1565C0",
+        "line_text_color": "#FFFFFF",
+        "shapes": [
+            {
+                "id": "east",
+                "headsign": "Terminus",
+                "direction_id": 0,
+                "color": None,
+                "points": [[latitude, longitude] for latitude, longitude in EAST.points],
+            }
+        ],
+    }
+
+
+async def test_trackers_name_their_source_and_mode(
+    hass: HomeAssistant, hub: FakeHub, freezer: FrozenDateTimeFactory
+) -> None:
+    hub.vehicles = [vehicle()]
+    await setup(hass)
+    await tick(hass, freezer)
+    attributes = get_state(hass, TRACKER).attributes
+    assert (attributes["route_type"], attributes["provider"]) == (3, "fake")
 
 
 async def test_action_refuses_an_unselected_line(hass: HomeAssistant, hub: FakeHub) -> None:

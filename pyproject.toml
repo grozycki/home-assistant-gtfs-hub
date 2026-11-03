@@ -65,6 +65,7 @@ ignore_missing_imports = true
 [[tool.mypy.overrides]]
 module = [
     "conftest",
+    "test_badge",
     "test_config_flow",
     "test_delay_events",
     "test_entities",

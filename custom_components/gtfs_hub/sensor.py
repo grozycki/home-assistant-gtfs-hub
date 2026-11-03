@@ -105,7 +105,10 @@ class NextDepartureSensor(StopSensor):
             "headsign": departure.headsign if departure else None,
             "realtime": departure is not None and departure.status is DepartureStatus.PREDICTED,
             "timetable_url": stop.url if stop else None,
-            "departures": [departure_as_dict(item) for item in self._departures],
+            "departures": [
+                departure_as_dict(item, self.coordinator.badge(item.line))
+                for item in self._departures
+            ],
             # Coordinates put a pinned stop on the map.
             "latitude": stop.latitude if stop else None,
             "longitude": stop.longitude if stop else None,
@@ -171,5 +174,8 @@ class NearestStopSensor(GtfsHubEntity, SensorEntity):
             "distance": round(item.distance),
             "distance_unit": UnitOfLength.METERS,
             "timetable_url": item.stop.url,
-            "departures": [departure_as_dict(departure) for departure in departures],
+            "departures": [
+                departure_as_dict(departure, self.coordinator.badge(departure.line))
+                for departure in departures
+            ],
         }

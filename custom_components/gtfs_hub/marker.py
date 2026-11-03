@@ -40,6 +40,11 @@ def mode_of(route_type: int) -> str:
     return "other"
 
 
+def mode_colour(route_type: int) -> str:
+    """Return the colour of a mode, which markers and badges share."""
+    return _COLOURS.get(mode_of(route_type), _DEFAULT_COLOUR)
+
+
 def form_of(planned: VehicleClass | None) -> str:
     """Return the picture of a vehicle, with a mark for a low floor."""
     if planned is None:
@@ -115,7 +120,7 @@ def marker_svg(
     """
     mode = mode_of(route_type)
     if livery is None:
-        background = _COLOURS.get(mode, _DEFAULT_COLOUR)
+        background = mode_colour(route_type)
         body, trim = _WHITE, background
     else:
         background = trim = livery.trim
