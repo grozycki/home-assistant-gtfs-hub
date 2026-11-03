@@ -1,5 +1,7 @@
 """Directions from shapes, and the action that returns them."""
 
+from dataclasses import replace
+from datetime import date
 from typing import TYPE_CHECKING
 
 import pytest
@@ -9,7 +11,7 @@ from homeassistant.exceptions import HomeAssistantError, ServiceValidationError
 from pytest_homeassistant_custom_component.common import MockConfigEntry, async_fire_time_changed
 
 from conftest import LINE_11, FakeHub, get_state, line_subentry, make_entry, vehicle
-from gtfs_hub import Shape, ShapeId
+from gtfs_hub import Shape, ShapeId, VehicleKey
 
 if TYPE_CHECKING:
     from collections.abc import Generator
@@ -184,3 +186,31 @@ async def test_action_without_schedule(hass: HomeAssistant, hub: FakeHub) -> Non
     hub.ready = False
     with pytest.raises(HomeAssistantError):
         await call(hass, entry, line="11")
+
+
+async def test_action_asks_for_todays_paths_and_cleans_the_colour(
+    hass: HomeAssistant, hub: FakeHub, freezer: FrozenDateTimeFactory
+) -> None:
+    freezer.move_to("2026-11-03 10:00:00+00:00")
+    hub.shapes[LINE_11] = [EAST]
+    entry = await setup(hass)
+    runtime = entry.runtime_data
+    runtime.schedule.data.lines[LINE_11] = replace(
+        runtime.schedule.data.lines[LINE_11], color="#FF0000"
+    )
+    shapes = await call(hass, entry, line="11")
+    assert isinstance(shapes, list)
+    assert shapes[0]["color"] == "#FF0000"
+    assert hub.shape_dates == [date(2026, 11, 3)]
+
+
+async def test_headings_of_vehicles_gone_from_the_feed_are_dropped(
+    hass: HomeAssistant, hub: FakeHub, freezer: FrozenDateTimeFactory
+) -> None:
+    hub.vehicles = [vehicle(latitude=50.0001, longitude=19.0025, shape=EAST)]
+    entry = await setup(hass)
+    await tick(hass, freezer)
+    other = replace(vehicle(), key=VehicleKey("v2"))
+    hub.vehicles = [other]
+    await tick(hass, freezer)
+    assert list(entry.runtime_data.departures._headings) == ["3:11:v2"]

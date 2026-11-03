@@ -33,5 +33,5 @@ get_line_shapes:
       selector:
         number:
           min: 0
-          max: 1700
+          max: 1799
           mode: box

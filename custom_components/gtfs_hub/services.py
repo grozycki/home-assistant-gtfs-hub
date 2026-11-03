@@ -14,6 +14,7 @@ from homeassistant.core import (
 from homeassistant.exceptions import HomeAssistantError, ServiceValidationError
 from homeassistant.helpers import config_validation as cv
 from homeassistant.helpers import service
+from homeassistant.util import dt as dt_util
 
 from gtfs_hub import GtfsError, LineKey, Shape, StopKey
 
@@ -78,7 +79,8 @@ def _shape_as_dict(shape: Shape, color: str | None) -> dict[str, JsonValueType]:
         "id": shape.id,
         "headsign": shape.headsign,
         "direction_id": shape.direction_id,
-        "color": None if color is None else f"#{color}",
+        # Some feeds write the hash that GTFS leaves out.
+        "color": None if color is None else f"#{color.removeprefix('#')}",
         "points": points,
     }
 
@@ -128,7 +130,8 @@ def async_setup_services(hass: HomeAssistant) -> None:
         )
         key = _selected_line(entry, call.data[CONF_LINE], call.data.get(CONF_ROUTE_TYPE))
         try:
-            shapes = await entry.runtime_data.hub.async_line_shapes(key)
+            # Today's paths only, so other days' variants are not drawn beside them.
+            shapes = await entry.runtime_data.hub.async_line_shapes(key, dt_util.now().date())
         except GtfsError as err:
             raise HomeAssistantError(
                 translation_domain=DOMAIN, translation_key="no_schedule"

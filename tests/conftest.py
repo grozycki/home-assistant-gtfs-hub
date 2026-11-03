@@ -95,6 +95,7 @@ class FakeHub:
     trip_delays: list[TripDelay] | None = None
     realtime_fetches: int = 0
     shapes: dict[LineKey, list[Shape]] = field(default_factory=dict)
+    shape_dates: list[date | None] = field(default_factory=list)
     provider: FakeProvider = field(default_factory=lambda: FakeProvider())
 
     async def async_sync(self, selection: Collection[LineKey]) -> None:
@@ -107,7 +108,10 @@ class FakeHub:
             raise GtfsNoDataError("empty")
         return [STOP_A, STOP_B]
 
-    async def async_line_shapes(self, key: LineKey) -> list[Shape]:
+    async def async_line_shapes(
+        self, key: LineKey, service_date: date | None = None
+    ) -> list[Shape]:
+        self.shape_dates.append(service_date)
         if not self.ready:
             raise GtfsNoDataError("empty")
         return self.shapes.get(key, [])

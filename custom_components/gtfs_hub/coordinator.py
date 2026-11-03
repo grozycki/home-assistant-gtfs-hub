@@ -245,10 +245,13 @@ class DeparturesCoordinator(DataUpdateCoordinator[DeparturesData]):
                 return self.data.vehicles
             return {}
         self._vehicles_seen = now
-        return {
+        tracked = {
             vehicle_id(vehicle): TrackedVehicle(vehicle, self._direction(vehicle))
             for vehicle in vehicles
         }
+        # A vehicle back after a gap is located afresh, so nothing else needs keeping.
+        self._headings = {key: self._headings[key] for key in tracked}
+        return tracked
 
     def _direction(self, vehicle: Vehicle) -> float | None:
         """Work out a direction from the shape, or once a vehicle has moved far enough."""
