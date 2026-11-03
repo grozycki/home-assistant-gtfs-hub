@@ -211,6 +211,12 @@
     },
     "no_schedule": {
       "message": "Brak dostępnego rozkładu."
+    },
+    "unknown_line": {
+      "message": "Linia {line} nie jest wybrana."
+    },
+    "ambiguous_line": {
+      "message": "Wybrano więcej niż jedną linię o nazwie {line}: podaj jej typ trasy."
     }
   },
   "services": {
@@ -229,6 +235,24 @@
         "limit": {
           "name": "Limit",
           "description": "Ile odjazdów zwrócić."
+        }
+      }
+    },
+    "get_line_shapes": {
+      "name": "Pobierz trasy linii",
+      "description": "Zwraca przebiegi śledzonej linii, do narysowania jej na mapie.",
+      "fields": {
+        "config_entry_id": {
+          "name": "Źródło",
+          "description": "Skonfigurowane źródło."
+        },
+        "line": {
+          "name": "Linia",
+          "description": "Krótka nazwa linii, np. 11."
+        },
+        "route_type": {
+          "name": "Typ trasy",
+          "description": "Typ trasy GTFS, potrzebny, gdy dwa rodzaje transportu mają tę samą nazwę, np. 3 dla autobusu."
         }
       }
     }

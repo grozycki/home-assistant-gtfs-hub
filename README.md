@@ -8,6 +8,7 @@ Public transport departures from GTFS sources, built on [gtfs-hub](https://githu
 - **Pinned stops** with next departure and delay sensors.
 - **A nearest stop sensor** per chosen person, listing departures of your lines from the closest stop within 2 km.
 - **The `gtfs_hub.get_departures` action**, for boards on a dashboard.
+- **The `gtfs_hub.get_line_shapes` action**, which returns the paths of a tracked line for drawing it on a map card.
 - **A live data sensor**, off when departures show only the schedule.
 
 Stops show departures of tracked lines only. The `timetable_url` attribute links to the source's page, where the source publishes one, for everything else that leaves the stop.
@@ -19,6 +20,8 @@ Delay reads unknown, not 0, when no prediction exists. Lists are left out of the
 Pinned stops appear on the map with a stop sign marker. Vehicles of tracked lines appear when the provider declares a stable vehicle identity, as GZM does, or on a test instance with `GTFS_HUB_DEMO_VEHICLES=1`.
 
 A tracker is named by its line, the type of vehicle planned for the current trip and the fleet number, such as `11 - Autobus niskopodłogowy #1347`, or by the vehicle key when the source has no number. The type is the source's own description where it has one, as GZM does, in the source's language. Otherwise it is worked out from the mode, size and low floor, in your language, such as `11 - Low-floor articulated bus #1347`. The name follows the type when the next trip plans another vehicle, and the `vehicle_type` attribute states it. Its entity ID starts with `gtfs_hub_` and the provider, such as `device_tracker.gtfs_hub_gzm_11_1347`. Fleet numbers can repeat between carriers, so two trackers may share a name, even on one line. A tracker is unavailable while its vehicle is away or on another line, and is removed once the vehicle has been missing for 3 days of service. Time when Home Assistant is off or the feed shows no vehicles of your lines does not count. Each tracked line is also a device that links to its timetable.
+
+The arrow on a marker shows the direction of travel. Where the source publishes the paths of its lines, as GZM does, the arrow follows the path where the vehicle is, from the first sight and while it stands. A vehicle more than 60 m from its path, or at a first sight on a street its line serves both ways, gets the direction from its movement instead, once it has moved 20 m. Either way the attribute is `derived_bearing`, as no source sends it. The built-in map shows points only, so the paths themselves need a card that draws them.
 
 ### Recorder
 
@@ -33,7 +36,7 @@ recorder:
 
 `device_tracker.gtfs_hub_gzm_*` excludes the trackers of one provider only. When an entry has 20 or more trackers and the recorder still stores them, Home Assistant shows a repair issue with this pattern. Trackers made by an earlier version are renamed to the prefixed form once, when the integration updates.
 
-A vehicle marker shows the line, a picture by mode and size, and an arrow for its direction, worked out from movement. A white ring means a low floor. Pictures come from the vehicle planned for the trip, so a replacement may differ.
+A vehicle marker shows the line, a picture by mode and size, and an arrow for its direction. A ring in the body colour means a low floor. Pictures come from the vehicle planned for the trip, so a replacement may differ.
 
 ## Delay events
 

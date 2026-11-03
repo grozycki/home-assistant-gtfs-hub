@@ -21,7 +21,9 @@ from gtfs_hub import (
     RealtimeData,
     Stop,
     StopKey,
+    TripId,
     Vehicle,
+    locate,
 )
 
 from .const import (
@@ -75,8 +77,20 @@ class NearestStop:
 
 
 @dataclass(frozen=True, slots=True)
+class _Heading:
+    """Where a vehicle was when its direction was last worked out."""
+
+    latitude: float
+    longitude: float
+    bearing: float | None
+    trip_id: TripId
+    # Metres along the shape of that trip, when it was located on it.
+    along: float | None
+
+
+@dataclass(frozen=True, slots=True)
 class TrackedVehicle:
-    """A vehicle with a direction worked out from its movement."""
+    """A vehicle with a direction worked out from its shape or its movement."""
 
     vehicle: Vehicle
     derived_bearing: float | None
@@ -174,7 +188,7 @@ class DeparturesCoordinator(DataUpdateCoordinator[DeparturesData]):
             hub.provider.capabilities.stable_vehicle_id
             or os.environ.get(DEMO_VEHICLES_VARIABLE) == "1"
         )
-        self._anchors: dict[str, tuple[float, float, float | None]] = {}
+        self._headings: dict[str, _Heading] = {}
         self._vehicles_seen: datetime | None = None
         threshold = entry.options.get(CONF_DELAY_THRESHOLD, DEFAULT_DELAY_THRESHOLD)
         self._rules = DelayRules(int(threshold) * 60)
@@ -237,17 +251,35 @@ class DeparturesCoordinator(DataUpdateCoordinator[DeparturesData]):
         }
 
     def _direction(self, vehicle: Vehicle) -> float | None:
-        """Work out a direction once a vehicle has moved far enough to trust it."""
+        """Work out a direction from the shape, or once a vehicle has moved far enough."""
         key = vehicle_id(vehicle)
-        anchor = self._anchors.get(key)
-        if anchor is None:
-            self._anchors[key] = (vehicle.latitude, vehicle.longitude, None)
+        held = self._headings.get(key)
+        # A new trip starts its shape afresh.
+        after = held.along if held is not None and held.trip_id == vehicle.trip_id else None
+        located = (
+            None
+            if vehicle.shape is None
+            else locate(vehicle.shape, vehicle.latitude, vehicle.longitude, after)
+        )
+        if located is not None:
+            self._headings[key] = _Heading(
+                vehicle.latitude, vehicle.longitude, located.bearing, vehicle.trip_id, located.along
+            )
+            return located.bearing
+        if held is None:
+            self._headings[key] = _Heading(
+                vehicle.latitude, vehicle.longitude, None, vehicle.trip_id, None
+            )
             return None
-        latitude, longitude, held = anchor
-        if distance(latitude, longitude, vehicle.latitude, vehicle.longitude) < MIN_MOVEMENT:
-            return held
-        direction = bearing(latitude, longitude, vehicle.latitude, vehicle.longitude)
-        self._anchors[key] = (vehicle.latitude, vehicle.longitude, direction)
+        if (
+            distance(held.latitude, held.longitude, vehicle.latitude, vehicle.longitude)
+            < MIN_MOVEMENT
+        ):
+            return held.bearing
+        direction = bearing(held.latitude, held.longitude, vehicle.latitude, vehicle.longitude)
+        self._headings[key] = _Heading(
+            vehicle.latitude, vehicle.longitude, direction, vehicle.trip_id, after
+        )
         return direction
 
     @override

@@ -21,6 +21,7 @@ from gtfs_hub import (
     LineKey,
     Livery,
     RealtimeData,
+    Shape,
     Snapshot,
     StaticFeedRef,
     Stop,
@@ -93,6 +94,7 @@ class FakeHub:
     # When set, each fetch returns a fresh message, and these are its trips.
     trip_delays: list[TripDelay] | None = None
     realtime_fetches: int = 0
+    shapes: dict[LineKey, list[Shape]] = field(default_factory=dict)
     provider: FakeProvider = field(default_factory=lambda: FakeProvider())
 
     async def async_sync(self, selection: Collection[LineKey]) -> None:
@@ -104,6 +106,11 @@ class FakeHub:
         if not self.ready:
             raise GtfsNoDataError("empty")
         return [STOP_A, STOP_B]
+
+    async def async_line_shapes(self, key: LineKey) -> list[Shape]:
+        if not self.ready:
+            raise GtfsNoDataError("empty")
+        return self.shapes.get(key, [])
 
     async def async_fetch_vehicles(self) -> list[Vehicle]:
         return self.vehicles
@@ -219,7 +226,11 @@ def get_state(hass: HomeAssistant, entity_id: str) -> State:
 
 
 def vehicle(
-    trip: str = "t1", latitude: float = 50.0, longitude: float = 19.0, label: str | None = None
+    trip: str = "t1",
+    latitude: float = 50.0,
+    longitude: float = 19.0,
+    label: str | None = None,
+    shape: Shape | None = None,
 ) -> Vehicle:
     return Vehicle(
         VehicleKey("v1"),
@@ -230,4 +241,5 @@ def vehicle(
         longitude,
         NOW,
         label=label,
+        shape=shape,
     )

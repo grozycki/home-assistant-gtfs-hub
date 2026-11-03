@@ -16,3 +16,22 @@ get_departures:
         number:
           min: 1
           max: 50
+get_line_shapes:
+  fields:
+    config_entry_id:
+      required: true
+      selector:
+        config_entry:
+          integration: gtfs_hub
+    line:
+      required: true
+      example: "11"
+      selector:
+        text:
+    route_type:
+      example: 3
+      selector:
+        number:
+          min: 0
+          max: 1700
+          mode: box

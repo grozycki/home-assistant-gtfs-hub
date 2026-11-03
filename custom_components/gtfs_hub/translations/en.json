@@ -211,6 +211,12 @@
     },
     "no_schedule": {
       "message": "No schedule is available."
+    },
+    "unknown_line": {
+      "message": "Line {line} is not selected."
+    },
+    "ambiguous_line": {
+      "message": "More than one selected line is called {line}: give its route type."
     }
   },
   "services": {
@@ -229,6 +235,24 @@
         "limit": {
           "name": "Limit",
           "description": "How many departures to return."
+        }
+      }
+    },
+    "get_line_shapes": {
+      "name": "Get line shapes",
+      "description": "Returns the paths of a tracked line, for drawing it on a map.",
+      "fields": {
+        "config_entry_id": {
+          "name": "Source",
+          "description": "The configured source."
+        },
+        "line": {
+          "name": "Line",
+          "description": "The short name of the line, such as 11."
+        },
+        "route_type": {
+          "name": "Route type",
+          "description": "The GTFS route type, needed when two modes share the name, such as 3 for a bus."
         }
       }
     }

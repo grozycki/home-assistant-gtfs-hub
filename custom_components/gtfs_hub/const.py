@@ -27,6 +27,7 @@ CONF_ROUTE_TYPE: Final = "route_type"
 CONF_SHORT_NAME: Final = "short_name"
 CONF_STOP_KEY: Final = "stop_key"
 CONF_LIMIT: Final = "limit"
+CONF_LINE: Final = "line"
 CONF_ENTRY_ID: Final = "config_entry_id"
 
 GENERIC_PROVIDER: Final = "generic"
