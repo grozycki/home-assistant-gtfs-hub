@@ -182,6 +182,7 @@ class VehicleTracker(CoordinatorEntity[DeparturesCoordinator], TrackerEntity):
             form_of(vehicle.planned_class),
             vehicle.line.short_name,
             self._last.derived_bearing,
+            self.coordinator.hub.provider.livery,
         )
 
     @property

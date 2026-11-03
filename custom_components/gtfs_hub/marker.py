@@ -1,13 +1,18 @@
 """Map marker images: the map cannot rotate a marker, so the image holds the arrow."""
 
+import re
 from html import escape
 from typing import TYPE_CHECKING, Final
-from urllib.parse import quote
+from urllib.parse import quote, urlencode
 
 from aiohttp import web
 from homeassistant.helpers.http import HomeAssistantView
 
+from gtfs_hub import Livery
+
 if TYPE_CHECKING:
+    from collections.abc import Mapping
+
     from gtfs_hub import VehicleClass
 
 STOP_MARKER_URL: Final = "/api/gtfs_hub/stop_marker"
@@ -19,6 +24,9 @@ _STEP: Final = 15
 _MAX_LINE: Final = 24
 _SHORT_BELOW: Final = 10
 _LONG_FROM: Final = 15
+_WHITE: Final = "#FFFFFF"
+# Colours land in SVG, so only plain hex passes.
+_HEX: Final = re.compile(r"[0-9A-Fa-f]{6}")
 
 
 def mode_of(route_type: int) -> str:
@@ -46,72 +54,99 @@ def form_of(planned: VehicleClass | None) -> str:
     return f"{form}{_LOW_FLOOR}" if planned.low_floor else form
 
 
-def marker_url(route_type: int, form: str, line: str, bearing: float | None) -> str:
+def marker_url(
+    route_type: int, form: str, line: str, bearing: float | None, livery: Livery | None = None
+) -> str:
     """Return the image of a vehicle, rounding the bearing so few images exist."""
     direction = "none" if bearing is None else str(round(bearing / _STEP) * _STEP % 360)
-    return f"/api/gtfs_hub/marker/{route_type}/{form}/{direction}/{quote(line, safe='')}"
+    url = f"/api/gtfs_hub/marker/{route_type}/{form}/{direction}/{quote(line, safe='')}"
+    if livery is None:
+        return url
+    query = {"body": livery.body.removeprefix("#"), "trim": livery.trim.removeprefix("#")}
+    return f"{url}?{urlencode(query)}"
 
 
-def _car(x: int, width: int, colour: str, wheels: tuple[int, ...]) -> str:
+def _car(x: int, width: int, body: str, trim: str, wheels: tuple[int, ...]) -> str:
     """Draw one body from the side, with a window strip."""
     circles = "".join(
-        f'<circle cx="{wheel}" cy="44" r="4.5" fill="#FFFFFF" stroke="{colour}" stroke-width="2"/>'
+        f'<circle cx="{wheel}" cy="44" r="4.5" fill="{body}" stroke="{trim}" stroke-width="2"/>'
         for wheel in wheels
     )
     return (
-        f'<rect x="{x}" y="24" width="{width}" height="19" rx="4" fill="#FFFFFF"/>'
-        f'<rect x="{x + 3}" y="27" width="{width - 6}" height="6" rx="1.5" fill="{colour}"/>'
+        f'<rect x="{x}" y="24" width="{width}" height="19" rx="4" fill="{body}"/>'
+        f'<rect x="{x + 3}" y="27" width="{width - 6}" height="6" rx="1.5" fill="{trim}"/>'
         f"{circles}"
     )
 
 
-def _picture(mode: str, form: str, colour: str) -> str:
+def _picture(mode: str, form: str, body: str, trim: str) -> str:
     """Draw a side view. Sizes differ by bus; trams differ by the number of units."""
     if form == "double":
-        cars = _car(12, 37, colour, (20, 41)) + _car(51, 37, colour, (59, 80))
+        cars = _car(12, 37, body, trim, (20, 41)) + _car(51, 37, body, trim, (59, 80))
     elif form == "long":
         cars = (
-            _car(15, 33, colour, (23, 41))
-            + '<rect x="48" y="27" width="4" height="13" fill="#FFFFFF"/>'
-            + _car(52, 33, colour, (59, 77))
+            _car(15, 33, body, trim, (23, 41))
+            + f'<rect x="48" y="27" width="4" height="13" fill="{body}"/>'
+            + _car(52, 33, body, trim, (59, 77))
         )
     elif form == "short":
-        cars = _car(30, 40, colour, (39, 61))
+        cars = _car(30, 40, body, trim, (39, 61))
     else:
-        cars = _car(21, 58, colour, (33, 67))
+        cars = _car(21, 58, body, trim, (33, 67))
     if mode == "tram":
         return (
-            cars + '<path d="M50 24 L43 18 L52 13 M44 13 H60" fill="none" stroke="#FFFFFF" '
+            cars + f'<path d="M50 24 L43 18 L52 13 M44 13 H60" fill="none" stroke="{body}" '
             'stroke-width="2.5"/>'
         )
     if mode == "trolleybus":
         return (
-            cars + '<path d="M40 24 L60 12 M47 24 L67 12" fill="none" stroke="#FFFFFF" '
+            cars + f'<path d="M40 24 L60 12 M47 24 L67 12" fill="none" stroke="{body}" '
             'stroke-width="2.5"/>'
         )
     return cars
 
 
-def marker_svg(route_type: int, form: str, line: str, bearing: int | None) -> str:
-    """Draw a marker. Everything sits inside the circle, as the map crops to one."""
+def marker_svg(
+    route_type: int, form: str, line: str, bearing: int | None, livery: Livery | None = None
+) -> str:
+    """Draw a marker. Everything sits inside the circle, as the map crops to one.
+
+    A livery paints the vehicle as the fleet looks; without one, the colour tells the mode.
+    """
     mode = mode_of(route_type)
-    colour = _COLOURS.get(mode, _DEFAULT_COLOUR)
+    if livery is None:
+        background = _COLOURS.get(mode, _DEFAULT_COLOUR)
+        body, trim = _WHITE, background
+    else:
+        background = trim = livery.trim
+        body = livery.body
     low_floor = form.endswith(_LOW_FLOOR)
     size = 32 if len(line) < 3 else 25 if len(line) < 5 else 17
-    ring = '<circle cx="50" cy="50" r="45" fill="none" stroke="#FFFFFF" stroke-width="7"/>'
+    ring = f'<circle cx="50" cy="50" r="45" fill="none" stroke="{body}" stroke-width="7"/>'
     arrow = (
         ""
         if bearing is None
         else f'<path d="M50 0 L61 13 L39 13 Z" fill="#FFD600" stroke="#000000" stroke-width="1" '
         f'transform="rotate({bearing} 50 50)"/>'
     )
+    picture = _picture(mode, form.removesuffix(_LOW_FLOOR), body, trim)
     return (
         '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">'
-        f'<circle cx="50" cy="50" r="50" fill="{colour}"/>'
-        f"{ring if low_floor else ''}{_picture(mode, form.removesuffix(_LOW_FLOOR), colour)}{arrow}"
+        f'<circle cx="50" cy="50" r="50" fill="{background}"/>'
+        f"{ring if low_floor else ''}{picture}{arrow}"
         f'<text x="50" y="72" dy=".35em" text-anchor="middle" font-family="sans-serif" '
-        f'font-weight="bold" font-size="{size}" fill="#FFFFFF">{escape(line)}</text></svg>'
+        f'font-weight="bold" font-size="{size}" fill="{body}">{escape(line)}</text></svg>'
     )
+
+
+def _livery_of(query: Mapping[str, str]) -> Livery | None:
+    """Read colours from a marker URL, refusing anything but plain hex."""
+    body, trim = query.get("body"), query.get("trim")
+    if body is None and trim is None:
+        return None
+    if body is None or trim is None or not (_HEX.fullmatch(body) and _HEX.fullmatch(trim)):
+        raise web.HTTPNotFound
+    return Livery(body=f"#{body}", trim=f"#{trim}")
 
 
 def stop_svg() -> str:
@@ -160,8 +195,9 @@ class MarkerView(HomeAssistantView):
         if not known or len(line) > _MAX_LINE or not (direction == "none" or direction.isdecimal()):
             raise web.HTTPNotFound
         bearing = None if direction == "none" else int(direction) % 360
+        livery = _livery_of(request.query)
         return web.Response(
-            text=marker_svg(int(route_type), form, line, bearing),
+            text=marker_svg(int(route_type), form, line, bearing, livery),
             content_type="image/svg+xml",
             headers={"Cache-Control": "public, max-age=86400"},
         )

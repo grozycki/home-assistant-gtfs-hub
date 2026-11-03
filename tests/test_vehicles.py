@@ -26,7 +26,7 @@ from conftest import (
     stop_subentry,
     vehicle,
 )
-from gtfs_hub import VehicleClass, VehicleKey
+from gtfs_hub import Livery, VehicleClass, VehicleKey
 
 if TYPE_CHECKING:
     from collections.abc import Generator
@@ -247,6 +247,12 @@ async def test_marker_view(
     assert response.status == 200
     assert response.content_type == "image/svg+xml"
     assert (await client.get("/api/gtfs_hub/marker/3/long/bad/11")).status == 404
+    painted = await client.get("/api/gtfs_hub/marker/3/long/none/11?body=FFD200&trim=1A1A1A")
+    assert painted.status == 200
+    assert 'fill="#1A1A1A"' in await painted.text()
+    for query in ("body=red&trim=1A1A1A", "body=FFD200", 'body=FFD200"&trim=1A1A1A'):
+        bad = await client.get(f"/api/gtfs_hub/marker/3/long/none/11?{query}")
+        assert bad.status == 404
 
 
 @pytest.mark.usefixtures("demo")
@@ -308,3 +314,37 @@ async def test_one_vehicle_leaving_goes_at_once(
     hub.vehicles = [other]
     await tick(hass, freezer)
     assert get_state(hass, TRACKER).state == STATE_UNAVAILABLE
+
+
+GZM_LIVERY = Livery(body="#FFD200", trim="#1A1A1A")
+
+
+def test_marker_in_a_livery() -> None:
+    svg = marker_svg(3, "standard-low", "11", None, GZM_LIVERY)
+    assert '<circle cx="50" cy="50" r="50" fill="#1A1A1A"/>' in svg
+    assert 'fill="#FFD200">11</text>' in svg
+    assert 'stroke="#FFD200" stroke-width="7"' in svg
+    assert "#1565C0" not in svg
+
+
+def test_marker_without_livery_keeps_the_mode_colour() -> None:
+    svg = marker_svg(3, "standard", "11", None)
+    assert '<circle cx="50" cy="50" r="50" fill="#1565C0"/>' in svg
+    assert 'fill="#FFFFFF">11</text>' in svg
+
+
+def test_marker_url_carries_the_livery() -> None:
+    url = marker_url(3, "long", "11", None, GZM_LIVERY)
+    assert url == "/api/gtfs_hub/marker/3/long/none/11?body=FFD200&trim=1A1A1A"
+
+
+@pytest.mark.usefixtures("demo")
+async def test_tracker_marker_uses_the_provider_livery(
+    hass: HomeAssistant, hub: FakeHub, freezer: FrozenDateTimeFactory
+) -> None:
+    hub.provider.livery = GZM_LIVERY
+    await setup(hass, hub)
+    hub.vehicles = [vehicle()]
+    await tick(hass, freezer)
+    picture = get_state(hass, TRACKER).attributes["entity_picture"]
+    assert picture.endswith("?body=FFD200&trim=1A1A1A")

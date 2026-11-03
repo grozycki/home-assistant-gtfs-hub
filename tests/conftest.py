@@ -19,6 +19,7 @@ from gtfs_hub import (
     GtfsNoDataError,
     Line,
     LineKey,
+    Livery,
     RealtimeData,
     Snapshot,
     StaticFeedRef,
@@ -72,6 +73,7 @@ class FakeProvider:
     attribution = "Data: Fake"
     stop_key = "stop_id"
     capabilities = Capabilities()
+    livery: Livery | None = None
 
     async def async_list_static_feeds(self, session: ClientSession) -> list[StaticFeedRef]:
         return []
