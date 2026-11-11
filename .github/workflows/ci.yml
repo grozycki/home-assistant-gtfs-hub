@@ -1,0 +1,41 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+  schedule:
+    - cron: "0 3 * * 1"
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      # The lock file points at ../gtfs-hub and ../gtfs-hub-gzm, so check them out beside it.
+      - run: |
+          git clone --depth 1 https://github.com/grozycki/gtfs-hub.git ../gtfs-hub
+          git clone --depth 1 https://github.com/grozycki/gtfs-hub-gzm.git ../gtfs-hub-gzm
+      - uses: astral-sh/setup-uv@v5
+        with:
+          python-version: "3.14"
+      - run: uv sync
+      - run: uv run ruff check .
+      - run: uv run ruff format --check .
+      - run: uv run mypy
+      - run: uv run pytest
+
+  hassfest:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: home-assistant/actions/hassfest@master
+
+  hacs:
+    runs-on: ubuntu-latest
+    permissions: {}
+    steps:
+      - uses: hacs/action@main
+        with:
+          category: integration

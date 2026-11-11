@@ -71,9 +71,17 @@ actions:
 
 ## Installation
 
-Not possible yet: see Release status.
+GTFS Hub is not in the Marketplace catalogue yet, so add it from its repository:
 
-Once released, through the Marketplace (Home Assistant 2026.11 or later): open Settings, Marketplace, find GTFS Hub, install it and restart Home Assistant. With HACS on an older version, add this repository as a custom repository of type Integration. By hand: copy `custom_components/gtfs_hub` into your `config/custom_components` folder and restart.
+[![Open your Home Assistant instance and open this repository.](https://my.home-assistant.io/badges/hacs_repository.svg)](https://my.home-assistant.io/redirect/hacs_repository/?owner=grozycki&repository=home-assistant-gtfs-hub&category=integration)
+
+1. Open the link above, or add `https://github.com/grozycki/home-assistant-gtfs-hub` as a custom repository of type Integration, in the Marketplace on Home Assistant 2026.11 or later, or in HACS on 2026.10.
+2. Download GTFS Hub and restart Home Assistant.
+3. Add it under Settings, Devices & services. On first use Home Assistant installs the `gtfs-hub` and `gtfs-hub-gzm` libraries from PyPI.
+
+By hand: copy `custom_components/gtfs_hub` from the [latest release](https://github.com/grozycki/home-assistant-gtfs-hub/releases/latest) into your `config/custom_components` folder and restart.
+
+Dashboard cards for departures and line maps are in [home-assistant-gtfs-hub-card](https://github.com/grozycki/home-assistant-gtfs-hub-card).
 
 ## Setup
 
@@ -86,7 +94,7 @@ The entry's options repeat these steps, so you can change the selection at any t
 
 ## Removal
 
-Delete the entry under Settings, Devices & services, GTFS Hub. Its timetable cache and vehicle sightings are deleted with it. Then remove the integration in the Marketplace, or delete `custom_components/gtfs_hub`, and restart.
+Delete the entry under Settings, Devices & services, GTFS Hub. Its timetable cache and vehicle sightings are deleted with it. Then remove the integration in the Marketplace or HACS, or delete `custom_components/gtfs_hub`, and restart.
 
 ## Troubleshooting
 
@@ -103,12 +111,9 @@ Delete the entry under Settings, Devices & services, GTFS Hub. Its timetable cac
 - Sources given by URL get no vehicles on the map, as their vehicle IDs are not proven stable.
 - Lines served by frequencies rather than a timetable are not supported.
 
-## Release status
+## Versions
 
-Not released. What blocks it:
-
-- The `gtfs-hub` and `gtfs-hub-gzm` packages are not on PyPI, so Home Assistant cannot install the requirements.
-- The repository is private, with no topics and no GitHub release; the Marketplace and the HACS action read public repositories only.
+Releases follow [Semantic Versioning](https://semver.org/) and are listed in the [changelog](CHANGELOG.md). Below 1.0, a release that needs you to act, such as setting an entry up again, bumps the minor version and says so at the top of its notes. Each release pins the library versions it was tested with.
 
 ## Verification
 
@@ -116,7 +121,7 @@ On 2026-11-02, the Docker test instance on Home Assistant 2026.10.4 was checked 
 
 - `uv run pytest --cov=custom_components/gtfs_hub`: 99% coverage.
 - hassfest: passes, run with `docker run --rm --platform linux/amd64 -v "$PWD:/github/workspace:ro" ghcr.io/home-assistant/hassfest`.
-- HACS validation: not run, as it needs a public repository.
+- CI runs tests, ruff, mypy, hassfest and HACS validation on every push.
 - Marketplace: not tested, as the test instance runs 2026.10.4.
 
 ## Test instance
