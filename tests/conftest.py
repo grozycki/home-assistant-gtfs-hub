@@ -11,6 +11,7 @@ from gtfs_hub.realtime import TripUpdate
 from homeassistant.config_entries import ConfigSubentryData
 from homeassistant.util import dt as dt_util
 from pytest_homeassistant_custom_component.common import MockConfigEntry
+from pytest_homeassistant_custom_component.syrupy import HomeAssistantSnapshotExtension
 
 from gtfs_hub import (
     Capabilities,
@@ -38,6 +39,7 @@ if TYPE_CHECKING:
 
     from aiohttp import ClientSession
     from homeassistant.core import HomeAssistant, State
+    from syrupy.assertion import SnapshotAssertion
 
 LINE_11 = LineKey(3, "11")
 TRAM_11 = LineKey(0, "11")
@@ -247,3 +249,13 @@ def vehicle(
         label=label,
         shape=shape,
     )
+
+
+@pytest.fixture
+def snapshot(snapshot: SnapshotAssertion) -> SnapshotAssertion:
+    """Read snapshots from tests/snapshots in any plugin order.
+
+    Both syrupy and the Home Assistant plugin define this fixture, and which wins
+    depends on the order the plugins load in, so a run could look in __snapshots__.
+    """
+    return snapshot.use_extension(HomeAssistantSnapshotExtension)
