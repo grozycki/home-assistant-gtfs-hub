@@ -6,7 +6,13 @@ from unittest.mock import patch
 
 import pytest
 from custom_components.gtfs_hub.const import DEMO_VEHICLES_VARIABLE, DEPARTURES_INTERVAL
-from custom_components.gtfs_hub.marker import STOP_MARKER_URL, form_of, marker_svg, marker_url
+from custom_components.gtfs_hub.marker import (
+    STOP_MARKER_URL,
+    arrow_colours,
+    form_of,
+    marker_svg,
+    marker_url,
+)
 from homeassistant.config_entries import ConfigSubentryData
 from homeassistant.const import STATE_UNAVAILABLE
 from homeassistant.helpers import entity_registry as er
@@ -348,3 +354,21 @@ async def test_tracker_marker_uses_the_provider_livery(
     await tick(hass, freezer)
     picture = get_state(hass, TRACKER).attributes["entity_picture"]
     assert picture.endswith("?body=FFD200&trim=1A1A1A")
+
+
+def test_livery_arrow_stands_out_from_both_colours() -> None:
+    gzm = Livery(body="#FFD200", trim="#1A1A1A")
+    # Black edges red more strongly than white does, and parts it from the yellow ring.
+    assert arrow_colours(gzm) == ("#E53935", "#000000")
+    svg = marker_svg(3, "long-low", "11", 90, gzm)
+    assert 'fill="#E53935" stroke="#000000"' in svg
+
+
+def test_arrow_without_livery_stays_yellow() -> None:
+    assert arrow_colours(None) == ("#FFD600", "#000000")
+    assert 'fill="#FFD600" stroke="#000000"' in marker_svg(3, "long", "11", 90)
+
+
+def test_dark_arrow_gets_a_white_edge() -> None:
+    # On a white and yellow livery black stands out most, and white edges it.
+    assert arrow_colours(Livery(body="#FFFFFF", trim="#FFD200")) == ("#000000", "#FFFFFF")

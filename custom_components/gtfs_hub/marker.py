@@ -25,6 +25,10 @@ _MAX_LINE: Final = 24
 _SHORT_BELOW: Final = 10
 _LONG_FROM: Final = 15
 _WHITE: Final = "#FFFFFF"
+_BLACK: Final = "#000000"
+_ARROW: Final = "#FFD600"
+# A livery picks the arrow that stands out most against both of its colours.
+_ARROW_CHOICES: Final = (_ARROW, "#E53935", _WHITE, _BLACK)
 # Colours land in SVG, so only plain hex passes.
 _HEX: Final = re.compile(r"[0-9A-Fa-f]{6}")
 
@@ -43,6 +47,30 @@ def mode_of(route_type: int) -> str:
 def mode_colour(route_type: int) -> str:
     """Return the colour of a mode, which markers and badges share."""
     return _COLOURS.get(mode_of(route_type), _DEFAULT_COLOUR)
+
+
+def _luminance(colour: str) -> float:
+    channels = [int(colour[index : index + 2], 16) / 255 for index in (1, 3, 5)]
+    linear = [c / 12.92 if c <= 0.04045 else ((c + 0.055) / 1.055) ** 2.4 for c in channels]
+    return 0.2126 * linear[0] + 0.7152 * linear[1] + 0.0722 * linear[2]
+
+
+def contrast(first: str, second: str) -> float:
+    """Return the WCAG contrast ratio of two #RRGGBB colours."""
+    lighter, darker = sorted((_luminance(first), _luminance(second)), reverse=True)
+    return (lighter + 0.05) / (darker + 0.05)
+
+
+def arrow_colours(livery: Livery | None) -> tuple[str, str]:
+    """Return the fill and edge of the direction arrow."""
+    if livery is None:
+        return _ARROW, _BLACK
+    fill = max(
+        _ARROW_CHOICES,
+        key=lambda colour: min(contrast(colour, livery.body), contrast(colour, livery.trim)),
+    )
+    # The edge is whichever of white and black stands out more against the fill.
+    return fill, _WHITE if contrast(fill, _WHITE) > contrast(fill, _BLACK) else _BLACK
 
 
 def form_of(planned: VehicleClass | None) -> str:
@@ -128,11 +156,13 @@ def marker_svg(
     low_floor = form.endswith(_LOW_FLOOR)
     size = 32 if len(line) < 3 else 25 if len(line) < 5 else 17
     ring = f'<circle cx="50" cy="50" r="45" fill="none" stroke="{body}" stroke-width="7"/>'
+    fill, edge = arrow_colours(livery)
+    width = "1" if livery is None else "1.5"
     arrow = (
         ""
         if bearing is None
-        else f'<path d="M50 0 L61 13 L39 13 Z" fill="#FFD600" stroke="#000000" stroke-width="1" '
-        f'transform="rotate({bearing} 50 50)"/>'
+        else f'<path d="M50 0 L61 13 L39 13 Z" fill="{fill}" stroke="{edge}" '
+        f'stroke-width="{width}" transform="rotate({bearing} 50 50)"/>'
     )
     picture = _picture(mode, form.removesuffix(_LOW_FLOOR), body, trim)
     return (

@@ -4,7 +4,7 @@ import re
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Final
 
-from .marker import mode_colour
+from .marker import contrast, mode_colour
 
 if TYPE_CHECKING:
     from gtfs_hub import Line, Livery
@@ -27,18 +27,6 @@ def as_colour(value: str | None) -> str | None:
     """Return a colour as #RRGGBB, or None when it is not one. Some feeds add the hash."""
     found = _HEX.fullmatch(value.strip()) if value else None
     return f"#{found[1].upper()}" if found else None
-
-
-def _luminance(colour: str) -> float:
-    channels = [int(colour[index : index + 2], 16) / 255 for index in (1, 3, 5)]
-    linear = [c / 12.92 if c <= 0.04045 else ((c + 0.055) / 1.055) ** 2.4 for c in channels]
-    return 0.2126 * linear[0] + 0.7152 * linear[1] + 0.0722 * linear[2]
-
-
-def contrast(first: str, second: str) -> float:
-    """Return the WCAG contrast ratio of two #RRGGBB colours."""
-    lighter, darker = sorted((_luminance(first), _luminance(second)), reverse=True)
-    return (lighter + 0.05) / (darker + 0.05)
 
 
 def line_badge(line: Line | None, route_type: int, livery: Livery | None) -> LineBadge:

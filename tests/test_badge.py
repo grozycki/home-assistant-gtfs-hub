@@ -3,7 +3,8 @@
 from typing import TYPE_CHECKING
 
 import pytest
-from custom_components.gtfs_hub.badge import LineBadge, as_colour, contrast, line_badge
+from custom_components.gtfs_hub.badge import LineBadge, as_colour, line_badge
+from custom_components.gtfs_hub.marker import contrast
 
 from conftest import (
     LINE_11,
