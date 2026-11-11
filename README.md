@@ -119,6 +119,8 @@ Releases follow [Semantic Versioning](https://semver.org/) and are listed in the
 
 On 2026-11-02, the Docker test instance on Home Assistant 2026.10.4 was checked against live feeds: GZM with vehicles, names, line devices, delay events and the recorder issue; a source given by URL with Kraków's tram feed, with live delays at a pinned stop; the nearest stop of a person; and an abandoned setup, which left no files behind.
 
+On 2026-11-11, release 0.1.0 was installed from its GitHub release into a fresh Home Assistant 2026.10.4 container: Home Assistant fetched `gtfs-hub` and `gtfs-hub-gzm` 0.1.0 from PyPI on its own, and GZM set up with a pinned stop, live data and the vehicles of bus 840 with their arrows.
+
 - `uv run pytest --cov=custom_components/gtfs_hub`: 99% coverage.
 - hassfest: passes, run with `docker run --rm --platform linux/amd64 -v "$PWD:/github/workspace:ro" ghcr.io/home-assistant/hassfest`.
 - CI runs tests, ruff, mypy, hassfest and HACS validation on every push.
