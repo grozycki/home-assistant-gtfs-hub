@@ -144,6 +144,7 @@ def async_setup_services(hass: HomeAssistant) -> None:
         line = runtime.schedule.data.lines.get(key)
         color = line.color if line is not None else None
         badge = runtime.departures.badge(key)
+        livery = runtime.hub.provider.livery
         # Enough for a card to find the trackers of this line of this source.
         return {
             "provider": runtime.hub.provider.key,
@@ -151,6 +152,8 @@ def async_setup_services(hass: HomeAssistant) -> None:
             "route_type": key.route_type,
             "line_color": badge.background,
             "line_text_color": badge.text,
+            # A fleet's body colour reads on a map, where a dark trim would vanish.
+            "path_color": livery.body if livery is not None else badge.background,
             "shapes": [_shape_as_dict(shape, color) for shape in shapes],
         }
 

@@ -11,7 +11,7 @@ from homeassistant.exceptions import HomeAssistantError, ServiceValidationError
 from pytest_homeassistant_custom_component.common import MockConfigEntry, async_fire_time_changed
 
 from conftest import LINE_11, FakeHub, get_state, line_subentry, make_entry, vehicle
-from gtfs_hub import Shape, ShapeId, VehicleKey
+from gtfs_hub import Livery, Shape, ShapeId, VehicleKey
 
 if TYPE_CHECKING:
     from collections.abc import Generator
@@ -157,6 +157,7 @@ async def test_action_returns_the_paths(hass: HomeAssistant, hub: FakeHub) -> No
         "route_type": 3,
         "line_color": "#1565C0",
         "line_text_color": "#FFFFFF",
+        "path_color": "#1565C0",
         "shapes": [
             {
                 "id": "east",
@@ -238,3 +239,17 @@ async def test_headings_of_vehicles_gone_from_the_feed_are_dropped(
     hub.vehicles = [other]
     await tick(hass, freezer)
     assert list(entry.runtime_data.departures._headings) == ["3:11:v2"]
+
+
+async def test_livery_paths_take_the_body_colour(hass: HomeAssistant, hub: FakeHub) -> None:
+    hub.provider.livery = Livery(body="#FFD200", trim="#1A1A1A")
+    entry = await setup(hass)
+    response = await hass.services.async_call(
+        DOMAIN,
+        "get_line_shapes",
+        {"config_entry_id": entry.entry_id, "line": "11"},
+        blocking=True,
+        return_response=True,
+    )
+    assert response is not None
+    assert (response["line_color"], response["path_color"]) == ("#1A1A1A", "#FFD200")
