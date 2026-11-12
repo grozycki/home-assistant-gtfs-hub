@@ -75,7 +75,7 @@ GTFS Hub is not in the Marketplace catalogue yet, so add it from its repository:
 
 [![Open your Home Assistant instance and open this repository.](https://my.home-assistant.io/badges/hacs_repository.svg)](https://my.home-assistant.io/redirect/hacs_repository/?owner=grozycki&repository=home-assistant-gtfs-hub&category=integration)
 
-1. Open the link above, or add `https://github.com/grozycki/home-assistant-gtfs-hub` as a custom repository of type Integration, in the Marketplace on Home Assistant 2026.11 or later, or in HACS on 2026.10.
+1. Open the link above. Or, on Home Assistant 2026.11 or later, go to Settings, Marketplace, Add from link and enter `https://github.com/grozycki/home-assistant-gtfs-hub`; on 2026.10, add it in HACS as a custom repository of type Integration. The first custom repository makes the Marketplace connect to GitHub once, with a code you enter on github.com.
 2. Download GTFS Hub and restart Home Assistant.
 3. Add it under Settings, Devices & services. On first use Home Assistant installs the `gtfs-hub` and `gtfs-hub-gzm` libraries from PyPI.
 
@@ -121,10 +121,11 @@ On 2026-11-02, the Docker test instance on Home Assistant 2026.10.4 was checked 
 
 On 2026-11-11, release 0.1.0 was installed from its GitHub release into a fresh Home Assistant 2026.10.4 container: Home Assistant fetched `gtfs-hub` and `gtfs-hub-gzm` 0.1.0 from PyPI on its own, and GZM set up with a pinned stop, live data and the vehicles of bus 840 with their arrows.
 
+On 2026-11-12, release 0.1.0 was checked on a fresh Home Assistant 2026.11.1 container. It was installed by hand first, then through the Marketplace from the link above together with the cards; after a restart GZM loaded with departures, delays, live data and vehicles, and both cards drew from the resource the Marketplace added. The tests run on `pytest-homeassistant` 2026.11.1.
+
 - `uv run pytest --cov=custom_components/gtfs_hub`: 99% coverage.
 - hassfest: passes, run with `docker run --rm --platform linux/amd64 -v "$PWD:/github/workspace:ro" ghcr.io/home-assistant/hassfest`.
 - CI runs tests, ruff, mypy, hassfest and HACS validation on every push.
-- Marketplace: not tested, as the test instance runs 2026.10.4.
 
 ## Test instance
 
