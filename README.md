@@ -76,7 +76,7 @@ GTFS Hub is not in the Marketplace catalogue yet, so add it from its repository:
 [![Open your Home Assistant instance and open this repository.](https://my.home-assistant.io/badges/hacs_repository.svg)](https://my.home-assistant.io/redirect/hacs_repository/?owner=grozycki&repository=home-assistant-gtfs-hub&category=integration)
 
 1. Open the link above. Or, on Home Assistant 2026.11 or later, go to Settings, Marketplace, Add from link and enter `https://github.com/grozycki/home-assistant-gtfs-hub`; on 2026.10, add it in HACS as a custom repository of type Integration. The first custom repository makes the Marketplace connect to GitHub once, with a code you enter on github.com.
-2. Download GTFS Hub and restart Home Assistant.
+2. Install GTFS Hub (Download in HACS) and restart Home Assistant.
 3. Add it under Settings, Devices & services. On first use Home Assistant installs the `gtfs-hub` and `gtfs-hub-gzm` libraries from PyPI.
 
 By hand: copy `custom_components/gtfs_hub` from the [latest release](https://github.com/grozycki/home-assistant-gtfs-hub/releases/latest) into your `config/custom_components` folder and restart.

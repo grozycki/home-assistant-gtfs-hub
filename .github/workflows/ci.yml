@@ -42,3 +42,15 @@ jobs:
       - uses: hacs/action@main
         with:
           category: integration
+
+  # Fail the weekly run once Home Assistant ships a release the tests do not pin yet.
+  current-release:
+    if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: |
+          pinned=$(grep -oE '"pytest-homeassistant==[^"]+"' pyproject.toml | cut -d= -f3 | tr -d '"')
+          latest=$(curl -fsSL https://pypi.org/pypi/pytest-homeassistant/json | python3 -c "import json, sys; print(json.load(sys.stdin)['info']['version'])")
+          echo "pinned $pinned, latest $latest"
+          test "$pinned" = "$latest" || { echo "::error::Move the tests to pytest-homeassistant==$latest"; exit 1; }
