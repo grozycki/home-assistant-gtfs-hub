@@ -8,7 +8,7 @@ import pytest
 from custom_components.gtfs_hub.const import DEMO_VEHICLES_VARIABLE, DEPARTURES_INTERVAL, DOMAIN
 from homeassistant.config_entries import ConfigSubentryData
 from homeassistant.exceptions import HomeAssistantError, ServiceValidationError
-from pytest_homeassistant_custom_component.common import MockConfigEntry, async_fire_time_changed
+from pytest_homeassistant.common import MockConfigEntry, async_fire_time_changed
 
 from conftest import LINE_11, FakeHub, get_state, line_subentry, make_entry, vehicle
 from gtfs_hub import Livery, Shape, ShapeId, VehicleKey

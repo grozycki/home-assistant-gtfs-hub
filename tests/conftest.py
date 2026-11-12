@@ -10,8 +10,8 @@ from custom_components.gtfs_hub.const import DOMAIN
 from gtfs_hub.realtime import TripUpdate
 from homeassistant.config_entries import ConfigSubentryData
 from homeassistant.util import dt as dt_util
-from pytest_homeassistant_custom_component.common import MockConfigEntry
-from pytest_homeassistant_custom_component.syrupy import HomeAssistantSnapshotExtension
+from pytest_homeassistant.common import MockConfigEntry
+from pytest_homeassistant.syrupy import HomeAssistantSnapshotExtension
 
 from gtfs_hub import (
     Capabilities,
@@ -171,11 +171,6 @@ class FakeHub:
 
     async def async_departures(self, key: StopKey, **kwargs: object) -> list[Departure]:
         return self.departures.get(key, [])
-
-
-@pytest.fixture(autouse=True)
-def auto_enable(enable_custom_integrations: None) -> None:
-    """Load custom integrations in every test."""
 
 
 @pytest.fixture

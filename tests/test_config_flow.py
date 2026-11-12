@@ -9,7 +9,7 @@ from homeassistant import config_entries
 from homeassistant.data_entry_flow import FlowResultType
 from homeassistant.helpers.selector import SelectSelector
 from probatio import Schema
-from pytest_homeassistant_custom_component.common import MockConfigEntry
+from pytest_homeassistant.common import MockConfigEntry
 
 from conftest import FakeHub, FakeProvider, line_subentry, make_entry, stop_subentry
 from gtfs_hub import GenericProvider, GtfsConnectionError, GtfsError, GtfsFeedError, Line, LineKey

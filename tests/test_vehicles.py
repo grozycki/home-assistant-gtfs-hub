@@ -17,7 +17,7 @@ from homeassistant.config_entries import ConfigSubentryData
 from homeassistant.const import STATE_UNAVAILABLE
 from homeassistant.helpers import entity_registry as er
 from homeassistant.setup import async_setup_component
-from pytest_homeassistant_custom_component.common import (
+from pytest_homeassistant.common import (
     MockConfigEntry,
     async_fire_time_changed,
 )
@@ -39,7 +39,7 @@ if TYPE_CHECKING:
 
     from freezegun.api import FrozenDateTimeFactory
     from homeassistant.core import HomeAssistant
-    from pytest_homeassistant_custom_component.typing import ClientSessionGenerator
+    from pytest_homeassistant.typing import ClientSessionGenerator
 
 TRACKER = "device_tracker.gtfs_hub_fake_11_v1"
 

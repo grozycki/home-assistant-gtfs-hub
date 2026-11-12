@@ -16,7 +16,7 @@ if TYPE_CHECKING:
     from collections.abc import Generator
 
     from homeassistant.core import HomeAssistant
-    from pytest_homeassistant_custom_component.common import MockConfigEntry
+    from pytest_homeassistant.common import MockConfigEntry
 
 pytestmark = pytest.mark.usefixtures("demo")
 RECORDED = "homeassistant.components.recorder.entity_options.is_entity_recorded"
