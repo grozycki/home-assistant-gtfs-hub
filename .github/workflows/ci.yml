@@ -13,10 +13,13 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      # The lock file points at ../gtfs-hub and ../gtfs-hub-gzm, so check them out beside it.
+      # The lock file points at ../gtfs-hub and ../gtfs-hub-gzm. Check out the releases the
+      # manifest pins, which is what users install, not the libraries' main branches.
       - run: |
-          git clone --depth 1 https://github.com/grozycki/gtfs-hub.git ../gtfs-hub
-          git clone --depth 1 https://github.com/grozycki/gtfs-hub-gzm.git ../gtfs-hub-gzm
+          for lib in gtfs-hub gtfs-hub-gzm; do
+            pin=$(python3 -c "import json, sys; print(next(r.split('==')[1] for r in json.load(open('custom_components/gtfs_hub/manifest.json'))['requirements'] if r.split('==')[0] == sys.argv[1]))" "$lib")
+            git clone --depth 1 --branch "v$pin" "https://github.com/grozycki/$lib.git" "../$lib"
+          done
       - uses: astral-sh/setup-uv@v5
         with:
           python-version: "3.14"
