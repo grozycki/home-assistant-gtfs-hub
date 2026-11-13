@@ -10,6 +10,7 @@ Public transport departures from GTFS sources, built on [gtfs-hub](https://githu
 - **The `gtfs_hub.get_departures` action**, for boards on a dashboard.
 - **The `gtfs_hub.get_line_shapes` action**, which returns the paths of a tracked line for drawing it on a map card.
 - **A live data sensor**, off when departures show only the schedule.
+- **Stop presence triggers and a condition**, for an automation that sends the next departures when you reach a pinned stop, with no zone to draw.
 
 Stops show departures of tracked lines only. The `timetable_url` attribute links to the source's page, where the source publishes one, for everything else that leaves the stop.
 
@@ -69,6 +70,66 @@ actions:
         {{ (state_attr('event.bus_11_delays', 'delay') / 60) | round }} min late
 ```
 
+## Stop presence
+
+Automations can react to a person, or a device tracker with GPS, reaching or leaving a pinned stop, with no zone for each stop:
+
+- the trigger `gtfs_hub.person_entered_stop` fires when a target comes within the radius of the stop, 50 m by default and 10 to 500 m in all;
+- the trigger `gtfs_hub.person_left_stop` fires when it goes more than 50 m beyond the radius, so a location jumping around the edge fires nothing;
+- the condition `gtfs_hub.person_at_stop` passes while a target is within the radius.
+
+In the automation editor they are under GTFS Hub, and the stop is picked from the pinned stops. Both triggers take `for`, so walking or driving past the stop fires nothing, and the same `behavior` as zone triggers when they target several persons. The condition takes `for` and `behavior` too. A reading with a GPS accuracy worse than the radius never brings a person in, and takes them out only when even its near edge is more than 50 m beyond the radius. Trackers without coordinates change nothing. Nothing fires when the automation is set up, so a restart at the stop sends no notification.
+
+The trigger carries `entity_id`, `stop` with `key`, `name` and `code`, `distance` in metres, and `departures` of your lines from the stop, as the departure sensor lists them. This automation sends the next three departures on reaching the stop, and clears them on leaving:
+
+```yaml
+triggers:
+  - trigger: gtfs_hub.person_entered_stop
+    id: entered
+    target:
+      entity_id: person.ania
+    options:
+      stop: 5e1f0c2b9a8d4e7f6a3b2c1d0e9f8a7b  # picked in the editor
+      for: "00:00:30"
+  - trigger: gtfs_hub.person_left_stop
+    id: left
+    target:
+      entity_id: person.ania
+    options:
+      stop: 5e1f0c2b9a8d4e7f6a3b2c1d0e9f8a7b
+actions:
+  - if:
+      - condition: trigger
+        id: entered
+    then:
+      - action: notify.mobile_app_phone
+        data:
+          title: "{{ trigger.stop.name }}"
+          message: >-
+            {% set rows = namespace(lines=[]) %}
+            {% for item in trigger.departures[:3] %}
+            {% set at = as_datetime(item.predicted or item.scheduled) %}
+            {% set minutes = ((at - now()).total_seconds() / 60) | round(0, 'floor') | int %}
+            {% set late = item.delay is number and item.delay >= 60 %}
+            {% set when = item.status if item.status in ['cancelled', 'skipped']
+              else minutes ~ ' min' ~ (' (+' ~ (item.delay / 60) | round | int ~ ')' if late else '') %}
+            {% set rows.lines = rows.lines + [item.line ~ ' ' ~ item.headsign ~ ': ' ~ when] %}
+            {% endfor %}
+            {{ rows.lines | join('\n') }}
+          data:
+            tag: gtfs_hub_stop
+    else:
+      - action: notify.mobile_app_phone
+        data:
+          message: clear_notification
+          data:
+            tag: gtfs_hub_stop
+```
+
+Detection is as quick as the locations your phone sends. The Companion app reports in the background when you move a fair distance, which can be minutes apart on a short walk. Its location settings, such as high accuracy mode on Android, make it report more often.
+
+Triggers and conditions of the integration are named subject, verb, object: `person_` for people at stops, with `vehicle_`, `departure_`, `trip_` and `live_data_` kept for later ones.
+
 ## Installation
 
 GTFS Hub is not in the Marketplace catalogue yet, so add it from its repository:
@@ -110,6 +171,7 @@ Delete the entry under Settings, Devices & services, GTFS Hub. Its timetable cac
 - Delay events need a feed that sends delays; a feed with stop times only gives departures but no events.
 - Sources given by URL get no vehicles on the map, as their vehicle IDs are not proven stable.
 - Lines served by frequencies rather than a timetable are not supported.
+- Stop presence follows the locations the phone sends, so a stop reached between two reports is noticed only on the next one.
 
 ## Versions
 

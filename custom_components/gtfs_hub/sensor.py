@@ -8,7 +8,7 @@ from homeassistant.helpers import entity_registry as er
 
 from gtfs_hub import Departure, DepartureStatus, Stop, StopKey
 
-from .const import CONF_PERSONS, CONF_STOP_KEY, SUBENTRY_STOP
+from .const import CONF_PERSONS, CONF_STOP_KEY, MODEL_STOP, SUBENTRY_STOP
 from .entity import GtfsHubEntity, departure_as_dict, next_departure, service_device
 from .marker import STOP_MARKER_URL
 
@@ -62,7 +62,7 @@ class StopSensor(GtfsHubEntity, SensorEntity):
     ) -> None:
         super().__init__(coordinator, attribution)
         self._stop_key = StopKey(subentry.data[CONF_STOP_KEY])
-        self._attr_device_info = service_device(subentry.subentry_id, subentry.title)
+        self._attr_device_info = service_device(subentry.subentry_id, subentry.title, MODEL_STOP)
         self._attr_unique_id = f"{subentry.subentry_id}_{self._attr_translation_key}"
 
     @property

@@ -3,6 +3,9 @@
 import json
 from pathlib import Path
 
+import pytest
+from homeassistant.util.yaml import load_yaml_dict
+
 ROOT = Path(__file__).parent.parent / "custom_components" / "gtfs_hub"
 
 
@@ -36,3 +39,27 @@ def test_used_keys_exist() -> None:
     assert isinstance(errors, dict)
     for key in errors:
         assert key in code
+
+
+def described(kind: str) -> dict[str, set[str]]:
+    """Return each trigger or condition of a description file with its fields."""
+    found: dict[str, set[str]] = {}
+    for key, value in load_yaml_dict(str(ROOT / f"{kind}.yaml")).items():
+        if key.startswith(".") or not isinstance(value, dict):
+            continue
+        fields = value.get("fields", {})
+        assert isinstance(fields, dict)
+        found[key] = set(fields)
+    return found
+
+
+@pytest.mark.parametrize("kind", ["triggers", "conditions"])
+@pytest.mark.parametrize("language", ["en", "pl"])
+def test_descriptions_have_strings(kind: str, language: str) -> None:
+    strings = load(language)[kind]
+    for key, fields in described(kind).items():
+        item = strings[key]
+        assert isinstance(item, dict)
+        assert item["name"]
+        assert item["description"]
+        assert set(item["fields"]) == fields

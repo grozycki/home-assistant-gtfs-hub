@@ -47,10 +47,13 @@ class GtfsHubEntity(CoordinatorEntity[DeparturesCoordinator]):
         self._attr_attribution = attribution
 
 
-def service_device(identifier: str, name: str) -> DeviceInfo:
+def service_device(identifier: str, name: str, model_id: str | None = None) -> DeviceInfo:
     """Return a service device, as neither a stop nor a provider is hardware."""
-    return DeviceInfo(
+    info = DeviceInfo(
         identifiers={(DOMAIN, identifier)},
         name=name,
         entry_type=DeviceEntryType.SERVICE,
     )
+    if model_id is not None:
+        info["model_id"] = model_id
+    return info

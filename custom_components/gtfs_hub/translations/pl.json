@@ -262,5 +262,69 @@
       "title": "Lokalizatory pojazdów zapełniają rejestrator",
       "description": "{entry} ma {count} lokalizatorów pojazdów, a rejestrator zapisuje każdy ich ruch. Aby nie trzymać historii pojazdów, dodaj `{pattern}` w `recorder: exclude: entity_globs:` w `configuration.yaml` i uruchom ponownie Home Assistanta."
     }
+  },
+  "triggers": {
+    "person_entered_stop": {
+      "name": "Osoba weszła na przystanek",
+      "description": "Wyzwala, gdy jedna lub więcej osób lub urządzeń śledzących dotrze na przystanek.",
+      "fields": {
+        "behavior": {
+          "name": "Wyzwalaj, gdy"
+        },
+        "for": {
+          "name": "Przez co najmniej"
+        },
+        "stop": {
+          "name": "Przystanek",
+          "description": "Przystanek dodany w konfiguracji."
+        },
+        "radius": {
+          "name": "Promień",
+          "description": "Jak blisko liczy się jako na przystanku, w metrach."
+        }
+      }
+    },
+    "person_left_stop": {
+      "name": "Osoba opuściła przystanek",
+      "description": "Wyzwala, gdy jedna lub więcej osób lub urządzeń śledzących oddali się od przystanku, 50 m poza promień.",
+      "fields": {
+        "behavior": {
+          "name": "Wyzwalaj, gdy"
+        },
+        "for": {
+          "name": "Przez co najmniej"
+        },
+        "stop": {
+          "name": "Przystanek",
+          "description": "Przystanek dodany w konfiguracji."
+        },
+        "radius": {
+          "name": "Promień",
+          "description": "Jak blisko liczy się jako na przystanku, w metrach."
+        }
+      }
+    }
+  },
+  "conditions": {
+    "person_at_stop": {
+      "name": "Osoba jest na przystanku",
+      "description": "Sprawdza, czy jedna lub więcej osób lub urządzeń śledzących jest na przystanku.",
+      "fields": {
+        "behavior": {
+          "name": "Sprawdź, gdy"
+        },
+        "for": {
+          "name": "Przez co najmniej"
+        },
+        "stop": {
+          "name": "Przystanek",
+          "description": "Przystanek dodany w konfiguracji."
+        },
+        "radius": {
+          "name": "Promień",
+          "description": "Jak blisko liczy się jako na przystanku, w metrach."
+        }
+      }
+    }
   }
 }

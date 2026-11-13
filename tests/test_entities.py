@@ -13,6 +13,7 @@ from gtfs_hub.realtime import TripUpdate
 from homeassistant.config_entries import ConfigEntryState, ConfigSubentryData
 from homeassistant.const import STATE_OFF, STATE_ON, STATE_UNAVAILABLE, STATE_UNKNOWN
 from homeassistant.exceptions import ServiceValidationError
+from homeassistant.helpers import device_registry as dr
 from homeassistant.helpers import entity_registry as er
 from pytest_homeassistant.common import (
     MockConfigEntry,
@@ -75,6 +76,18 @@ async def test_prediction(hass: HomeAssistant, hub: FakeHub) -> None:
     assert state.attributes["attribution"] == "Data: Fake"
     assert state.attributes["departures"][0]["status"] == "predicted"
     assert float(get_state(hass, DELAY).state) == 120
+
+
+async def test_stop_device_is_a_stop(hass: HomeAssistant, hub: FakeHub) -> None:
+    entry = await setup(hass, line_subentry(), stop_subentry())
+    stop_id = next(iter(entry.get_subentries_of_type("stop"))).subentry_id
+    registry = dr.async_get(hass)
+    device = registry.async_get_device_by_identifier((DOMAIN, stop_id), entry.entry_id)
+    assert device is not None
+    assert device.model_id == "stop"
+    provider = registry.async_get_device_by_identifier((DOMAIN, entry.entry_id), entry.entry_id)
+    assert provider is not None
+    assert provider.model_id is None
 
 
 async def test_no_prediction_is_unknown_delay(hass: HomeAssistant, hub: FakeHub) -> None:

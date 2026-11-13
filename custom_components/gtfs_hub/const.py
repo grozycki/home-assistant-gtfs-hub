@@ -29,10 +29,16 @@ CONF_STOP_KEY: Final = "stop_key"
 CONF_LIMIT: Final = "limit"
 CONF_LINE: Final = "line"
 CONF_ENTRY_ID: Final = "config_entry_id"
+# Options of the stop presence triggers and condition.
+CONF_STOP: Final = "stop"
+CONF_RADIUS: Final = "radius"
 
 GENERIC_PROVIDER: Final = "generic"
 SUBENTRY_LINE: Final = "line"
 SUBENTRY_STOP: Final = "stop"
+# Model IDs, so a device picker can offer stops or lines alone.
+MODEL_LINE: Final = "line"
+MODEL_STOP: Final = "stop"
 
 SCHEDULE_INTERVAL: Final = timedelta(hours=6)
 SCHEDULE_RETRY_INTERVAL: Final = timedelta(minutes=15)

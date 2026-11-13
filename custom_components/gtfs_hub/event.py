@@ -7,7 +7,7 @@ from homeassistant.core import HomeAssistant, callback
 
 from gtfs_hub import LineKey
 
-from .const import CONF_ROUTE_TYPE, CONF_SHORT_NAME, SUBENTRY_LINE
+from .const import CONF_ROUTE_TYPE, CONF_SHORT_NAME, MODEL_LINE, SUBENTRY_LINE
 from .delays import DelayEvent, DelayEventType
 from .entity import GtfsHubEntity, service_device
 
@@ -62,7 +62,7 @@ class LineDelayEvent(GtfsHubEntity, EventEntity):
         self._tick = coordinator.data.tick
         self._attr_event_types = [item.value for item in DelayEventType]
         self._attr_unique_id = f"{subentry.subentry_id}_delays"
-        self._attr_device_info = service_device(subentry.subentry_id, subentry.title)
+        self._attr_device_info = service_device(subentry.subentry_id, subentry.title, MODEL_LINE)
 
     @callback
     @override

@@ -11,3 +11,5 @@ dist/
 docker/wheels/
 docker/.test-credentials
 .coverage
+# Written by the automation component when tests set it up.
+tests/testing_config/

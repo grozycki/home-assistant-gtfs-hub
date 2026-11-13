@@ -28,6 +28,7 @@ from .const import (
     CONF_TRIP_UPDATES_URL,
     DOMAIN,
     GENERIC_PROVIDER,
+    MODEL_LINE,
     PLATFORMS,
     SUBENTRY_LINE,
 )
@@ -37,6 +38,7 @@ from .coordinator import (
     GtfsHubRuntime,
     ScheduleCoordinator,
 )
+from .entity import service_device
 from .marker import MarkerView, StopMarkerView
 from .recorder_load import async_clear_recorder_issue, tracker_entity_id, tracker_prefix
 from .services import async_setup_services
@@ -136,10 +138,9 @@ def _update_line_devices(hass: HomeAssistant, entry: GtfsHubConfigEntry) -> None
         registry.async_get_or_create(
             config_entry_id=entry.entry_id,
             config_subentry_id=subentry.subentry_id,
-            identifiers={(DOMAIN, subentry.subentry_id)},
-            name=subentry.title,
-            entry_type=dr.DeviceEntryType.SERVICE,
             configuration_url=line.url if line is not None else None,
+            # The delay event describes the same device, so both take it from one place.
+            **service_device(subentry.subentry_id, subentry.title, MODEL_LINE),
         )
 
 

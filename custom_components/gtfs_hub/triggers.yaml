@@ -1,0 +1,38 @@
+.trigger_stop: &trigger_stop
+  target:
+    entity:
+      domain:
+        - person
+        - device_tracker
+  fields:
+    behavior:
+      required: true
+      default: each
+      selector:
+        automation_behavior:
+          mode: trigger
+    for:
+      required: true
+      default: 00:00:00
+      selector:
+        duration:
+    stop:
+      required: true
+      selector:
+        device:
+          filter:
+            integration: gtfs_hub
+            model_id: stop
+    radius:
+      required: true
+      default: 50
+      selector:
+        number:
+          min: 10
+          max: 500
+          step: 5
+          mode: box
+          unit_of_measurement: m
+
+person_entered_stop: *trigger_stop
+person_left_stop: *trigger_stop

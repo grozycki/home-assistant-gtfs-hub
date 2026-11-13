@@ -126,6 +126,7 @@ async def test_line_device_exists_without_vehicles(hass: HomeAssistant, hub: Fak
     [device] = [item for item in devices if (DOMAIN, line_id(entry)) in item.identifiers]
     assert device.name == "Bus 11"
     assert device.configuration_url == LINE_11_URL
+    assert device.model_id == "line"
 
 
 def other() -> Vehicle:
