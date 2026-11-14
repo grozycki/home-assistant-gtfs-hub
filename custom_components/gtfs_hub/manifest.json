@@ -23,7 +23,7 @@
     "gtfs_hub"
   ],
   "requirements": [
-    "gtfs-hub==0.1.0",
+    "gtfs-hub==0.1.1",
     "gtfs-hub-gzm==0.1.0"
   ],
   "version": "0.1.0"

@@ -44,6 +44,7 @@ from gtfs_hub import (
     Provider,
     StopChoice,
     async_list_provider_keys,
+    delete_store,
 )
 
 from . import async_build_provider, database_path
@@ -467,7 +468,7 @@ class GtfsHubConfigFlow(_SelectionFlow, ConfigFlow, domain=DOMAIN):
 
         @callback
         def delete(_: object = None) -> None:
-            _ = self.hass.async_add_executor_job(lambda: path.unlink(missing_ok=True))
+            _ = self.hass.async_add_executor_job(delete_store, path)
 
         if job is None:
             delete()

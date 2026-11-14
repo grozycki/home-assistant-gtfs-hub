@@ -12,7 +12,15 @@ from probatio import Schema
 from pytest_homeassistant.common import MockConfigEntry
 
 from conftest import FakeHub, FakeProvider, line_subentry, make_entry, stop_subentry
-from gtfs_hub import GenericProvider, GtfsConnectionError, GtfsError, GtfsFeedError, Line, LineKey
+from gtfs_hub import (
+    GenericProvider,
+    GtfsConnectionError,
+    GtfsError,
+    GtfsFeedError,
+    Line,
+    LineKey,
+    kept_files_dir,
+)
 
 if TYPE_CHECKING:
     from collections.abc import Mapping
@@ -184,11 +192,15 @@ async def test_abandoned_setup_deletes_its_database(hass: HomeAssistant, hub: Fa
     path: Path = database_path(hass, "fake")
     await hass.async_add_executor_job(path.parent.mkdir, 0o755, True, True)
     await hass.async_add_executor_job(path.write_bytes, b"x")
+    kept = kept_files_dir(path) / "file.zip"
+    await hass.async_add_executor_job(kept.parent.mkdir)
+    await hass.async_add_executor_job(kept.write_bytes, b"x")
     with patch(HUB, return_value=hub):
         result = await _to_lines(hass)
     hass.config_entries.flow.async_abort(result["flow_id"])
     await hass.async_block_till_done()
     assert not await hass.async_add_executor_job(path.exists)
+    assert not await hass.async_add_executor_job(kept.parent.exists)
 
 
 async def _setup(

@@ -18,6 +18,7 @@ from gtfs_hub import (
     LineKey,
     Provider,
     async_create_provider,
+    delete_store,
 )
 
 from .const import (
@@ -158,8 +159,8 @@ async def async_unload_entry(hass: HomeAssistant, entry: GtfsHubConfigEntry) -> 
 
 
 async def async_remove_entry(hass: HomeAssistant, entry: GtfsHubConfigEntry) -> None:
-    """Delete the timetable cache of a removed entry."""
+    """Delete the timetable cache and kept schedule files of a removed entry."""
     assert entry.unique_id is not None
     path = database_path(hass, entry.unique_id)
-    await hass.async_add_executor_job(lambda: path.unlink(missing_ok=True))
+    await hass.async_add_executor_job(delete_store, path)
     await async_remove_sightings(hass, entry.entry_id)

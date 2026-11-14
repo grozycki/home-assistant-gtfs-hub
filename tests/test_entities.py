@@ -30,7 +30,13 @@ from conftest import (
     make_entry,
     stop_subentry,
 )
-from gtfs_hub import DepartureStatus, GtfsConnectionError, GtfsNoDataError, RealtimeData
+from gtfs_hub import (
+    DepartureStatus,
+    GtfsConnectionError,
+    GtfsNoDataError,
+    RealtimeData,
+    kept_files_dir,
+)
 
 if TYPE_CHECKING:
     from freezegun.api import FrozenDateTimeFactory
@@ -252,9 +258,13 @@ async def test_cache_removed_with_the_entry(hass: HomeAssistant, hub: FakeHub) -
     path = database_path(hass, "fake")
     await hass.async_add_executor_job(path.parent.mkdir, 0o755, True, True)
     await hass.async_add_executor_job(path.write_bytes, b"x")
+    kept = kept_files_dir(path) / "file.zip"
+    await hass.async_add_executor_job(kept.parent.mkdir)
+    await hass.async_add_executor_job(kept.write_bytes, b"x")
     assert await hass.config_entries.async_remove(entry.entry_id)
     await hass.async_block_till_done()
     assert not await hass.async_add_executor_job(path.exists)
+    assert not await hass.async_add_executor_job(kept.parent.exists)
 
 
 async def test_no_realtime_without_lines_pins_or_persons(hass: HomeAssistant, hub: FakeHub) -> None:
