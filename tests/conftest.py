@@ -91,6 +91,7 @@ class FakeHub:
     realtime_error: Exception | None = None
     realtime: RealtimeData | None = None
     departures: dict[StopKey, list[Departure]] = field(default_factory=dict)
+    line_stops: list[Stop] = field(default_factory=lambda: [STOP_A, STOP_B])
     synced: list[list[LineKey]] = field(default_factory=list)
     vehicles: list[Vehicle] = field(default_factory=list)
     # When set, each fetch returns a fresh message, and these are its trips.
@@ -108,7 +109,7 @@ class FakeHub:
     async def async_stops_of_line(self, key: LineKey) -> list[Stop]:
         if not self.ready:
             raise GtfsNoDataError("empty")
-        return [STOP_A, STOP_B]
+        return self.line_stops
 
     async def async_line_shapes(
         self, key: LineKey, service_date: date | None = None

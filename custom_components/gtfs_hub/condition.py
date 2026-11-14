@@ -13,7 +13,7 @@ from homeassistant.helpers.condition import (
 )
 
 from .const import CONF_RADIUS, CONF_STOP
-from .pinned import STOP_OPTIONS, TARGET_DOMAINS, StopLookup
+from .pinned import STOP_OPTIONS, TARGET_DOMAINS, StopsLookup
 from .presence import measure
 
 if TYPE_CHECKING:
@@ -24,11 +24,13 @@ if TYPE_CHECKING:
     from homeassistant.helpers.typing import ConfigType
 
 _DOMAIN_SPECS: Mapping[str, DomainSpec] = {domain: DomainSpec() for domain in TARGET_DOMAINS}
-_SCHEMA = ENTITY_STATE_CONDITION_SCHEMA_ANY_ALL.extend({vol.Required(CONF_OPTIONS): STOP_OPTIONS})
+_SCHEMA = ENTITY_STATE_CONDITION_SCHEMA_ANY_ALL.extend(
+    {vol.Required(CONF_OPTIONS, default={}): STOP_OPTIONS}
+)
 
 
 class PersonAtStopCondition(EntityConditionBase):
-    """Passes when targets are within the radius of a stop now."""
+    """Passes when targets are within the radius of one of the stops now."""
 
     _domain_specs = _DOMAIN_SPECS
     _schema = _SCHEMA
@@ -43,8 +45,8 @@ class PersonAtStopCondition(EntityConditionBase):
         super().__init__(hass, config)
         if TYPE_CHECKING:
             assert config.options is not None
-        self._stop = StopLookup(
-            hass, config.options[CONF_STOP], "the at stop condition always fails"
+        self._stops = StopsLookup(
+            hass, config.options[CONF_STOP], "the at stop condition leaves it out"
         )
         self._radius: float = config.options[CONF_RADIUS]
 
@@ -68,13 +70,13 @@ class PersonAtStopCondition(EntityConditionBase):
 
     @override
     def is_valid_state(self, entity_state: State) -> bool:
-        """Check that a target is at the stop."""
+        """Check that a target is at one of the stops."""
         # Only the radius counts: a condition sees no earlier reading to hold someone in.
-        stop = self._stop()
-        if stop is None:
-            return False
-        reading = measure(entity_state.attributes, stop.latitude, stop.longitude)
-        return reading is not None and reading.within(self._radius)
+        for stop in self._stops():
+            reading = measure(entity_state.attributes, stop.latitude, stop.longitude)
+            if reading is not None and reading.within(self._radius):
+                return True
+        return False
 
 
 CONDITIONS: dict[str, type[Condition]] = {"person_at_stop": PersonAtStopCondition}

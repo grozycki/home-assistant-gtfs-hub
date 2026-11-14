@@ -1,4 +1,4 @@
-from custom_components.gtfs_hub.presence import at_stop, measure
+from custom_components.gtfs_hub.presence import Reading, at_stop, current_stop, measure
 
 # At this latitude, 0.001 degree of latitude is about 111 m.
 STOP = (50.0, 19.0)
@@ -89,3 +89,34 @@ def test_no_coordinates_change_nothing() -> None:
 def test_non_numeric_coordinates_change_nothing() -> None:
     assert measure({"latitude": "50", "longitude": 19.0}, *STOP) is None
     assert measure({"latitude": True, "longitude": 19.0}, *STOP) is None
+
+
+def near(alfa: float, beta: float, accuracy: float = 5) -> dict[str, Reading | None]:
+    """Return readings at two stops this far away."""
+    return {"alfa": Reading(alfa, accuracy), "beta": Reading(beta, accuracy)}
+
+
+def test_nearest_stop_wins_on_entering() -> None:
+    assert current_stop(None, near(40, 5), RADIUS) == "beta"
+
+
+def test_staying_at_the_first_of_two_poles() -> None:
+    assert current_stop("alfa", near(45, 0), RADIUS) == "alfa"
+
+
+def test_moving_to_another_stop_after_leaving() -> None:
+    assert current_stop("alfa", near(400, 10), RADIUS) == "beta"
+    assert current_stop("alfa", near(400, 300), RADIUS) is None
+
+
+def test_coarse_fix_far_away_leaves_without_entering() -> None:
+    assert current_stop("alfa", near(2000, 1990, accuracy=200), RADIUS) is None
+
+
+def test_no_coordinates_keep_the_stop() -> None:
+    assert current_stop("alfa", {"alfa": None, "beta": None}, RADIUS) == "alfa"
+    assert current_stop(None, {"alfa": None, "beta": None}, RADIUS) is None
+
+
+def test_a_stop_no_longer_covered_is_left() -> None:
+    assert current_stop("gone", near(10, 400), RADIUS) == "alfa"

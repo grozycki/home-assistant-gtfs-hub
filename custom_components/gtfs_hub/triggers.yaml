@@ -17,9 +17,10 @@
       selector:
         duration:
     stop:
-      required: true
+      required: false
       selector:
         device:
+          multiple: true
           filter:
             integration: gtfs_hub
             model_id: stop

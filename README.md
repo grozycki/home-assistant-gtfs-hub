@@ -74,13 +74,13 @@ actions:
 
 Automations can react to a person, or a device tracker with GPS, reaching or leaving a pinned stop, with no zone for each stop:
 
-- the trigger `gtfs_hub.person_entered_stop` fires when a target comes within the radius of the stop, 50 m by default and 10 to 500 m in all;
+- the trigger `gtfs_hub.person_entered_stop` fires when a target comes within the radius of a stop, 50 m by default and 10 to 500 m in all;
 - the trigger `gtfs_hub.person_left_stop` fires when it goes more than 50 m beyond the radius, so a location jumping around the edge fires nothing;
-- the condition `gtfs_hub.person_at_stop` passes while a target is within the radius.
+- the condition `gtfs_hub.person_at_stop` passes while a target is within the radius of a stop.
 
-In the automation editor they are under GTFS Hub, and the stop is picked from the pinned stops. Both triggers take `for`, so walking or driving past the stop fires nothing, and the same `behavior` as zone triggers when they target several persons. The condition takes `for` and `behavior` too. A reading with a GPS accuracy worse than the radius never brings a person in, and takes them out only when even its near edge is more than 50 m beyond the radius. Trackers without coordinates change nothing. Nothing fires when the automation is set up, so a restart at the stop sends no notification.
+In the automation editor they are under GTFS Hub. Pick one or more of the pinned stops, or leave the field empty for every pinned stop of every GTFS Hub entry, including stops you pin later. A target is at one stop at a time: it comes to the nearest stop whose radius it is within, and stays there until it leaves that stop. So the poles of one stop on both sides of a street notify once, and walking on to another stop fires leaving the first and entering the next. Both triggers take `for`, so walking or driving past the stop fires nothing, and the same `behavior` as zone triggers when they target several persons. `first` and `all` count the persons at the same stop. The condition takes `for` and `behavior` too. A reading with a GPS accuracy worse than the radius never brings a person in, and takes them out only when even its near edge is more than 50 m beyond the radius. Trackers without coordinates change nothing. Nothing fires when the automation is set up, so a restart at the stop sends no notification.
 
-The trigger carries `entity_id`, `stop` with `key`, `name` and `code`, `distance` in metres, and `departures` of your lines from the stop, as the departure sensor lists them. This automation sends the next three departures on reaching the stop, and clears them on leaving:
+The trigger carries `entity_id`, `stop` with `key`, `name` and `code`, `distance` in metres, and `departures` of your lines from the stop, as the departure sensor lists them. This automation sends the next three departures on reaching any pinned stop, and clears them on leaving:
 
 ```yaml
 triggers:
@@ -89,14 +89,12 @@ triggers:
     target:
       entity_id: person.ania
     options:
-      stop: 5e1f0c2b9a8d4e7f6a3b2c1d0e9f8a7b  # picked in the editor
+      # No stop: every pinned stop. Pick stops in the editor to narrow it.
       for: "00:00:30"
   - trigger: gtfs_hub.person_left_stop
     id: left
     target:
       entity_id: person.ania
-    options:
-      stop: 5e1f0c2b9a8d4e7f6a3b2c1d0e9f8a7b
 actions:
   - if:
       - condition: trigger

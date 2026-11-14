@@ -275,8 +275,8 @@
           "name": "For at least"
         },
         "stop": {
-          "name": "Stop",
-          "description": "A stop added in the configuration."
+          "name": "Stops",
+          "description": "Stops added in the configuration. An empty field covers every added stop."
         },
         "radius": {
           "name": "Radius",
@@ -295,8 +295,8 @@
           "name": "For at least"
         },
         "stop": {
-          "name": "Stop",
-          "description": "A stop added in the configuration."
+          "name": "Stops",
+          "description": "Stops added in the configuration. An empty field covers every added stop."
         },
         "radius": {
           "name": "Radius",
@@ -317,8 +317,8 @@
           "name": "For at least"
         },
         "stop": {
-          "name": "Stop",
-          "description": "A stop added in the configuration."
+          "name": "Stops",
+          "description": "Stops added in the configuration. An empty field covers every added stop."
         },
         "radius": {
           "name": "Radius",

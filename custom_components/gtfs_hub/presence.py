@@ -6,7 +6,7 @@ from typing import TYPE_CHECKING, Final
 from .nearest import distance
 
 if TYPE_CHECKING:
-    from collections.abc import Mapping
+    from collections.abc import Hashable, Mapping
 
 DEFAULT_RADIUS: Final = 50
 MIN_RADIUS: Final = 10
@@ -63,3 +63,24 @@ def at_stop(was_at_stop: bool, reading: Reading | None, radius: float) -> bool:
     if reading.accuracy > radius:
         return reading.distance - reading.accuracy <= radius + EXIT_MARGIN
     return reading.distance <= radius + EXIT_MARGIN
+
+
+def current_stop[K: Hashable](
+    was: K | None, readings: Mapping[K, Reading | None], radius: float
+) -> K | None:
+    """Return which of several stops a person is at after a reading, if any.
+
+    A person stays at their stop by the rules of `at_stop`, even when another stop is
+    as near, so the poles of one stop on both sides of a street do not trade places.
+    Otherwise they come to the nearest stop whose radius they are within.
+    """
+    if was is not None and was in readings and at_stop(True, readings[was], radius):
+        return was
+    candidates = [
+        (reading.distance, key)
+        for key, reading in readings.items()
+        if reading is not None and reading.within(radius)
+    ]
+    if not candidates:
+        return None
+    return min(candidates, key=lambda candidate: candidate[0])[1]

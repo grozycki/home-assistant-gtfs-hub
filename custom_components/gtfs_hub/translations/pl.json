@@ -275,8 +275,8 @@
           "name": "Przez co najmniej"
         },
         "stop": {
-          "name": "Przystanek",
-          "description": "Przystanek dodany w konfiguracji."
+          "name": "Przystanki",
+          "description": "Przystanki dodane w konfiguracji. Puste pole obejmuje wszystkie dodane przystanki."
         },
         "radius": {
           "name": "Promień",
@@ -295,8 +295,8 @@
           "name": "Przez co najmniej"
         },
         "stop": {
-          "name": "Przystanek",
-          "description": "Przystanek dodany w konfiguracji."
+          "name": "Przystanki",
+          "description": "Przystanki dodane w konfiguracji. Puste pole obejmuje wszystkie dodane przystanki."
         },
         "radius": {
           "name": "Promień",
@@ -317,8 +317,8 @@
           "name": "Przez co najmniej"
         },
         "stop": {
-          "name": "Przystanek",
-          "description": "Przystanek dodany w konfiguracji."
+          "name": "Przystanki",
+          "description": "Przystanki dodane w konfiguracji. Puste pole obejmuje wszystkie dodane przystanki."
         },
         "radius": {
           "name": "Promień",

@@ -1,15 +1,20 @@
 """Stop presence triggers and condition, run inside automations."""
 
 from datetime import timedelta
+from pathlib import Path
+from types import MappingProxyType
 from typing import TYPE_CHECKING
 
 import pytest
 from custom_components.gtfs_hub.const import DOMAIN
+from homeassistant.config_entries import ConfigSubentry, ConfigSubentryData
 from homeassistant.helpers import device_registry as dr
 from homeassistant.setup import async_setup_component
+from homeassistant.util.yaml import parse_yaml
 from pytest_homeassistant.common import async_fire_time_changed, async_mock_service
 
 from conftest import NOW, STOP_A, FakeHub, departure, line_subentry, make_entry, stop_subentry
+from gtfs_hub import Stop, StopKey
 
 if TYPE_CHECKING:
     from freezegun.api import FrozenDateTimeFactory
@@ -20,6 +25,10 @@ PHONE = "device_tracker.phone"
 TABLET = "device_tracker.tablet"
 # At this latitude, 0.001 degree of latitude is about 111 m.
 METRE = 1 / 111_195
+# The other pole of stop A, across the street, and a stop down the road.
+# Stop A stands at 50.0, 19.0.
+POLE = Stop(StopKey("P"), "Alfa 2", None, 50.0 + 45 * METRE, 19.0)
+NEAR = Stop(StopKey("N"), "Near", None, 50.0 + 400 * METRE, 19.0)
 
 
 @pytest.fixture(autouse=True)
@@ -46,16 +55,34 @@ async def moved(hass: HomeAssistant, entity_id: str, north: float | None, **kw: 
     await hass.async_block_till_done()
 
 
-async def setup_entry(hass: HomeAssistant) -> MockConfigEntry:
-    entry = make_entry(line_subentry(), stop_subentry())
+async def setup_entry(hass: HomeAssistant, *stops: Stop) -> MockConfigEntry:
+    """Set up an entry with stop A pinned, or with these stops pinned instead."""
+    subentries = [pin(stop) for stop in stops] if stops else [stop_subentry()]
+    entry = make_entry(line_subentry(), *subentries)
     entry.add_to_hass(hass)
     await hass.config_entries.async_setup(entry.entry_id)
     await hass.async_block_till_done()
     return entry
 
 
-def stop_device(hass: HomeAssistant, entry: MockConfigEntry) -> str:
-    stop_id = entry.get_subentries_of_type("stop")[0].subentry_id
+def pin(stop: Stop) -> ConfigSubentryData:
+    return ConfigSubentryData(
+        data={"stop_key": stop.key}, subentry_type="stop", title=stop.name, unique_id=stop.key
+    )
+
+
+def subentry_id(entry: MockConfigEntry, key: str = "A") -> str:
+    return str(
+        next(
+            subentry.subentry_id
+            for subentry in entry.get_subentries_of_type("stop")
+            if subentry.data["stop_key"] == key
+        )
+    )
+
+
+def stop_device(hass: HomeAssistant, entry: MockConfigEntry, key: str = "A") -> str:
+    stop_id = subentry_id(entry, key)
     device = dr.async_get(hass).async_get_device_by_identifier((DOMAIN, stop_id), entry.entry_id)
     assert device is not None
     return device.id
@@ -64,11 +91,13 @@ def stop_device(hass: HomeAssistant, entry: MockConfigEntry) -> str:
 async def automation(
     hass: HomeAssistant,
     trigger: str,
-    device_id: str,
+    device_id: str | list[str] | None,
     targets: list[str] | None = None,
     options: dict[str, object] | None = None,
 ) -> list[ServiceCall]:
+    """Set up an automation on a trigger, with no stop field when device_id is None."""
     calls: list[ServiceCall] = async_mock_service(hass, "test", "automation")
+    stop = {} if device_id is None else {"stop": device_id}
     assert await async_setup_component(
         hass,
         "automation",
@@ -77,7 +106,7 @@ async def automation(
                 "triggers": {
                     "trigger": f"{DOMAIN}.{trigger}",
                     "target": {"entity_id": targets or [PHONE]},
-                    "options": {"stop": device_id, **(options or {})},
+                    "options": {**stop, **(options or {})},
                 },
                 "actions": {
                     "action": "test.automation",
@@ -148,6 +177,16 @@ async def test_restart_at_the_stop_fires_nothing(hass: HomeAssistant, hub: FakeH
     place(hass, PHONE, 10)
     entry = await setup_entry(hass)
     calls = await automation(hass, "person_entered_stop", stop_device(hass, entry))
+    await moved(hass, PHONE, 20)
+    assert calls == []
+
+
+async def test_tracker_appearing_at_the_stop_fires_nothing(
+    hass: HomeAssistant, hub: FakeHub
+) -> None:
+    entry = await setup_entry(hass)
+    calls = await automation(hass, "person_entered_stop", stop_device(hass, entry))
+    await moved(hass, PHONE, 10)
     await moved(hass, PHONE, 20)
     assert calls == []
 
@@ -299,12 +338,13 @@ async def test_before_the_first_sync_fires_nothing_quietly(
 
 async def at_stop_automation(
     hass: HomeAssistant,
-    device_id: str,
+    device_id: str | list[str] | None,
     targets: list[str] | None = None,
     options: dict[str, object] | None = None,
 ) -> list[ServiceCall]:
     """Run an automation on an event, passing only when the condition holds."""
     calls: list[ServiceCall] = async_mock_service(hass, "test", "automation")
+    stop = {} if device_id is None else {"stop": device_id}
     assert await async_setup_component(
         hass,
         "automation",
@@ -314,7 +354,7 @@ async def at_stop_automation(
                 "conditions": {
                     "condition": f"{DOMAIN}.person_at_stop",
                     "target": {"entity_id": targets or [PHONE]},
-                    "options": {"stop": device_id, **(options or {})},
+                    "options": {**stop, **(options or {})},
                 },
                 "actions": {"action": "test.automation"},
             }
@@ -477,3 +517,211 @@ async def test_condition_all_with_a_missing_target_fails(hass: HomeAssistant, hu
         hass, stop_device(hass, entry), targets=[TABLET], options={"behavior": "all"}
     )
     assert not await check(hass, calls)
+
+
+@pytest.fixture
+def stops(hub: FakeHub) -> FakeHub:
+    """Serve stop A, its other pole and a stop 400 m on, on line 11."""
+    hub.line_stops = [STOP_A, POLE, NEAR]
+    return hub
+
+
+@pytest.mark.parametrize("field", [None, "", []])
+async def test_no_stop_covers_every_stop(
+    hass: HomeAssistant, stops: FakeHub, field: str | list[str] | None
+) -> None:
+    place(hass, PHONE, -300)
+    await setup_entry(hass, STOP_A, NEAR)
+    calls = await automation(hass, "person_entered_stop", field)
+    await moved(hass, PHONE, 0)
+    await moved(hass, PHONE, 400)
+    assert [call.data["stop"] for call in calls] == ["Alfa", "Near"]
+
+
+async def test_no_stop_covers_a_stop_pinned_later(hass: HomeAssistant, stops: FakeHub) -> None:
+    place(hass, PHONE, -300)
+    entry = await setup_entry(hass)
+    calls = await automation(hass, "person_entered_stop", None)
+    hass.config_entries.async_add_subentry(
+        entry,
+        ConfigSubentry(
+            data=MappingProxyType({"stop_key": NEAR.key}),
+            subentry_type="stop",
+            title=NEAR.name,
+            unique_id=NEAR.key,
+        ),
+    )
+    await hass.async_block_till_done()
+    await moved(hass, PHONE, 400)
+    assert [call.data["stop"] for call in calls] == ["Near"]
+
+
+async def test_two_poles_fire_once(hass: HomeAssistant, stops: FakeHub) -> None:
+    place(hass, PHONE, -300)
+    await setup_entry(hass, STOP_A, POLE)
+    calls = await automation(hass, "person_entered_stop", None)
+    await moved(hass, PHONE, 0)
+    await moved(hass, PHONE, 45)
+    await moved(hass, PHONE, 20)
+    assert [call.data["stop"] for call in calls] == ["Alfa"]
+
+
+async def test_nearest_stop_wins(hass: HomeAssistant, stops: FakeHub) -> None:
+    place(hass, PHONE, 300)
+    await setup_entry(hass, STOP_A, POLE)
+    calls = await automation(hass, "person_entered_stop", None)
+    await moved(hass, PHONE, 40)
+    assert [call.data["stop"] for call in calls] == ["Alfa 2"]
+    assert calls[0].data["distance"] == 5
+
+
+async def test_walking_to_another_stop_enters_it(hass: HomeAssistant, stops: FakeHub) -> None:
+    place(hass, PHONE, 0)
+    entry = await setup_entry(hass, STOP_A, NEAR)
+    devices = [stop_device(hass, entry, "A"), stop_device(hass, entry, "N")]
+    calls = await automation(hass, "person_entered_stop", devices)
+    await moved(hass, PHONE, 10)
+    await moved(hass, PHONE, 400)
+    assert [call.data["stop"] for call in calls] == ["Near"]
+
+
+async def test_walking_to_another_stop_leaves_the_first(
+    hass: HomeAssistant, stops: FakeHub
+) -> None:
+    place(hass, PHONE, 0)
+    entry = await setup_entry(hass, STOP_A, NEAR)
+    devices = [stop_device(hass, entry, "A"), stop_device(hass, entry, "N")]
+    calls = await automation(hass, "person_left_stop", devices)
+    await moved(hass, PHONE, 10)
+    await moved(hass, PHONE, 400)
+    await moved(hass, PHONE, 1000)
+    assert [(call.data["stop"], call.data["distance"]) for call in calls] == [
+        ("Alfa", 400),
+        ("Near", 600),
+    ]
+
+
+async def test_all_counts_targets_at_the_same_stop(hass: HomeAssistant, stops: FakeHub) -> None:
+    place(hass, PHONE, -300)
+    place(hass, TABLET, -300)
+    await setup_entry(hass, STOP_A, NEAR)
+    calls = await automation(
+        hass, "person_entered_stop", None, targets=[PHONE, TABLET], options={"behavior": "all"}
+    )
+    await moved(hass, PHONE, 0)
+    await moved(hass, TABLET, 400)
+    assert calls == []
+    await moved(hass, TABLET, 10)
+    assert [call.data["stop"] for call in calls] == ["Alfa"]
+
+
+async def test_duration_skips_a_pass_by_at_one_of_several_stops(
+    hass: HomeAssistant, stops: FakeHub, freezer: FrozenDateTimeFactory
+) -> None:
+    place(hass, PHONE, -300)
+    await setup_entry(hass, STOP_A, NEAR)
+    calls = await automation(hass, "person_entered_stop", None, options={"for": {"seconds": 30}})
+    await moved(hass, PHONE, 400)
+    freezer.tick(timedelta(seconds=10))
+    async_fire_time_changed(hass)
+    await moved(hass, PHONE, 1000)
+    freezer.tick(timedelta(seconds=30))
+    async_fire_time_changed(hass)
+    await hass.async_block_till_done()
+    assert calls == []
+
+
+async def test_one_of_two_stops_removed_keeps_the_other(
+    hass: HomeAssistant, stops: FakeHub, caplog: pytest.LogCaptureFixture
+) -> None:
+    place(hass, PHONE, -300)
+    entry = await setup_entry(hass, STOP_A, NEAR)
+    devices = [stop_device(hass, entry, "A"), stop_device(hass, entry, "N")]
+    calls = await automation(hass, "person_entered_stop", devices)
+    hass.config_entries.async_remove_subentry(entry, subentry_id(entry, "N"))
+    await hass.async_block_till_done()
+    await moved(hass, PHONE, 400)
+    await moved(hass, PHONE, 0)
+    await moved(hass, PHONE, 400)
+    assert [call.data["stop"] for call in calls] == ["Alfa"]
+    assert caplog.text.count("is not a stop of GTFS Hub") == 1
+
+
+async def test_target_at_a_removed_stop_is_learnt_again(
+    hass: HomeAssistant, stops: FakeHub
+) -> None:
+    place(hass, PHONE, 400)
+    entry = await setup_entry(hass, STOP_A, NEAR)
+    calls = await automation(hass, "person_left_stop", None)
+    await moved(hass, PHONE, 410)
+    hass.config_entries.async_remove_subentry(entry, subentry_id(entry, "N"))
+    await hass.async_block_till_done()
+    await moved(hass, PHONE, 1000)
+    # Near is gone, so walking away from it fires nothing, and Alfa still works.
+    assert calls == []
+    await moved(hass, PHONE, 0)
+    await moved(hass, PHONE, 300)
+    assert [call.data["stop"] for call in calls] == ["Alfa"]
+
+
+async def test_no_stop_with_an_unloaded_entry_is_quiet(
+    hass: HomeAssistant, stops: FakeHub, caplog: pytest.LogCaptureFixture
+) -> None:
+    place(hass, PHONE, -300)
+    entry = await setup_entry(hass)
+    await hass.config_entries.async_unload(entry.entry_id)
+    calls = await automation(hass, "person_entered_stop", None)
+    await moved(hass, PHONE, 0)
+    assert calls == []
+    assert "is not a stop of GTFS Hub" not in caplog.text
+
+
+async def test_condition_no_stop_passes_at_any_stop(hass: HomeAssistant, stops: FakeHub) -> None:
+    place(hass, PHONE, 400)
+    await setup_entry(hass, STOP_A, NEAR)
+    calls = await at_stop_automation(hass, None)
+    assert await check(hass, calls)
+    await moved(hass, PHONE, 200)
+    assert not await check(hass, calls)
+
+
+async def test_condition_two_stops_pass_at_either(hass: HomeAssistant, stops: FakeHub) -> None:
+    place(hass, PHONE, 0)
+    entry = await setup_entry(hass, STOP_A, NEAR)
+    devices = [stop_device(hass, entry, "A"), stop_device(hass, entry, "N")]
+    calls = await at_stop_automation(hass, devices)
+    assert await check(hass, calls)
+    await moved(hass, PHONE, 400)
+    assert await check(hass, calls)
+    hass.config_entries.async_remove_subentry(entry, subentry_id(entry, "A"))
+    await hass.async_block_till_done()
+    assert await check(hass, calls)
+    await moved(hass, PHONE, 0)
+    assert not await check(hass, calls)
+
+
+async def test_readme_example_runs(
+    hass: HomeAssistant, stops: FakeHub, freezer: FrozenDateTimeFactory
+) -> None:
+    """The README automation loads, notifies at any pinned stop and clears on leaving."""
+    readme = (Path(__file__).parent.parent / "README.md").read_text()
+    section = readme[readme.index("## Stop presence") :]
+    example = section[section.index("```yaml") + len("```yaml") : section.index("```\n", 10)]
+    config = parse_yaml(example.replace("person.ania", "device_tracker.phone"))
+    notes: list[ServiceCall] = async_mock_service(hass, "notify", "mobile_app_phone")
+    stops.departures[NEAR.key] = [departure(), departure(minutes=9)]
+    place(hass, PHONE, -300)
+    await setup_entry(hass, STOP_A, NEAR)
+    assert await async_setup_component(hass, "automation", {"automation": config})
+    await hass.async_block_till_done()
+    automation_state = hass.states.get("automation.automation_0")
+    assert automation_state is not None
+    assert automation_state.state == "on"
+    await moved(hass, PHONE, 400)
+    freezer.tick(timedelta(seconds=31))
+    async_fire_time_changed(hass)
+    await hass.async_block_till_done()
+    assert [note.data["title"] for note in notes] == ["Near"]
+    assert notes[0].data["message"].count("\n") == 1
+    await moved(hass, PHONE, 1000)
+    assert notes[-1].data["message"] == "clear_notification"
